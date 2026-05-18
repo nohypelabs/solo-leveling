@@ -1,0 +1,343 @@
+SOLO LEVELING FITNESS SYSTEM – Technical Design Document (TDD)
+Versi: 1.0
+Target Platform: iOS & Android (React Native Expo)
+Arsitektur: Edge-First, Realtime, Animasi 60 FPS
+
+1. RINGKASAN EKSEKUTIF
+Sistem ini adalah aplikasi fitness dengan gamifikasi ala anime Solo Leveling. Pengguna (builder) melakukan misi harian (push-up, pull-up, sit-up, side plank). Setiap repetisi memberikan XP, dan setelah cukup XP naik level, mendapat Status Point yang bisa dialokasikan ke Strength, Endurance, Recovery, atau Flexibility.
+
+Keunikan:
+
+Realistis fisiologis – ada cooldown otot (48 jam per grup), tidak bisa latihan grup otot sama setiap hari.
+
+Hadiah fisik nyata – setiap misi selesai memberikan rekomendasi hadiah (susu UHT, pisang, telur, dll.) yang harus dibeli sendiri oleh pengguna sebagai bentuk komitmen.
+
+UI/UX futuristik – tampilan hologram, glitch effect, neon, animasi 60 FPS, suara “Quest Complete”.
+
+Transfer data instan – menggunakan edge computing (Cloudflare Workers) dan database realtime (Supabase).
+
+2. FITUR UTAMA SISTEM
+ID	Fitur	Deskripsi
+F01	Misi Harian	4 gerakan: push-up (15), pull-up (5), sit-up (10), side plank (60 detik). Bisa diganti/ditingkatkan volumenya seiring level.
+F02	XP & Leveling	Setiap repetisi/ detik plank memberi XP. Level naik tiap 100 XP. Setiap level naik dapat 1 Status Point.
+F03	Status Points	Strength (beban lebih berat), Endurance (lebih lama sebelum lelah), Recovery (mengurangi DOMS), Flexibility (mengurangi risiko cedera).
+F04	Cooldown Otot	Sistem melacak grup otot terakhir dilatih (chest, back, core). Jika masih cooldown, muncul peringatan dan misi tidak bisa di-claim.
+F05	Hadiah Fisik	Setelah misi harian selesai, sistem menampilkan hadiah (contoh: Susu UHT 250ml). Pengguna harus membeli sendiri, sistem hanya berfungsi sebagai pengingat dan motivator.
+F06	Streak & Milestone	Streak harian memberikan bonus XP dan hadiah spesial (misal: protein bar di hari ke-7).
+F07	System Window UI	Hologram card, XP bar gaya anime, teks neon, glitch effect, notifikasi quest complete.
+F08	Sinkronisasi Multi-perangkat	Data level, XP, status point, dan streak tersimpan di cloud dan bisa diakses dari HP lain.
+3. ROADMAP PER FASE
+Proyek dibagi menjadi 4 fase. Setiap fase menghasilkan produk yang sudah bisa dipakai (incremental delivery).
+
+🧱 FASE 1 – MVP Core (Minggu 1-2)
+Tujuan: Aplikasi bisa tracking misi harian, memberi XP, naik level, menyimpan data lokal.
+
+Deliverable	Teknologi	Kriteria sukses
+Tampilan utama status (level, XP bar, misi hari ini)	React Native + Expo, NativeWind	XP bar terisi sesuai progres
+Tombol +1 untuk setiap gerakan (manual input)	React Native Pressable, HapticFeedback	Setiap tekan menambah counter dan XP
+Timer untuk side plank	React Native Vibration, Alert	Timer berjalan, vibrasi selesai
+Logika XP & level (Zustand store)	Zustand, AsyncStorage	Level naik setelah 100 XP, status point tersimpan
+Penyimpanan lokal (streak, level, XP)	MMKV (karena lebih cepat dari AsyncStorage)	Data tetap ada setelah app ditutup
+Tampilan hadiah setelah misi selesai	Modal dengan efek neon	Menampilkan "Susu UHT 250ml"
+Catatan Fase 1: Belum ada backend, semua data lokal. UI belum pakai shader kompleks, cukup teks neon dan warna gelap.
+
+⚡ FASE 2 – Cloud & Realtime (Minggu 3-4)
+Tujuan: Sinkronisasi antar perangkat, backup data, dan notifikasi realtime.
+
+Deliverable	Teknologi	Kriteria sukses
+Setup Supabase project, tabel users, progress, missions	Supabase (PostgreSQL)	Bisa insert & select via API
+Authentication (email/password atau anonymous)	Supabase Auth	Pengguna bisa login, data pribadi terenkripsi
+Cloudflare Worker untuk API endpoint (getMissions, submitProgress)	Cloudflare Workers + Hono	Latency < 50ms dari Indonesia
+Sinkronisasi otomatis: setiap selesai misi, data dikirim ke Supabase via Worker	React Native fetch + retry logic	Data tetap tersimpan walau offline (queue lokal)
+Realtime update streak dari server ke client (misal streak reward dari server)	Supabase Realtime (WebSocket)	Client menerima notifikasi tanpa refresh
+✨ FASE 3 – Animasi & Efek Futuristik (Minggu 5-6)
+Tujuan: UI terasa seperti di anime, dengan animasi mulus 60 FPS.
+
+Deliverable	Teknologi	Kriteria sukses
+Animasi glitch pada teks level & XP bar	React Native Reanimated v4 (withSharedValue, withSpring)	Efek glitch muncul saat naik level
+Efek hologram 3D pada kartu misi (mengikuti gyroscope)	expo-sensors (gyroscope) + Reanimated	Kartu bergerak saat HP dimiringkan
+Partikel confetti saat quest complete	react-native-confetti atau Skia	Animasi partikel halus
+Suara "Quest Complete" dan "Level Up"	expo-av (Audio)	Suara diputar sesuai event
+Shader neon border (glow)	@shopify/react-native-skia	Border kartu bercahaya
+🚀 FASE 4 – Polishing & Distribution (Minggu 7-8)
+Tujuan: Siap rilis untuk personal use (atau publik jika diinginkan).
+
+Deliverable	Kriteria sukses
+Dark mode & adaptive font	Selalu dark, tidak perlu mode terang
+Notifikasi harian (local push)	expo-notifications mengingatkan misi jam 19.00
+Error handling & offline queue	Jika tidak ada internet, data disimpan dan dikirim saat online lagi
+Build APK (Android) & IPA (iOS)	eas build -p android --profile production
+Dokumentasi pengguna (README)	Cara pakai, daftar hadiah, aturan cooldown
+4. TECH STACK ULTIMATE (Final Decision)
+Ini adalah pilihan teknologi yang TIDAK BISA DIGANGGU GUGAT untuk mencapai performa maksimal.
+
+Frontend (Mobile App)
+Komponen	Pilihan	Alasan
+Framework	React Native 0.76+ (New Architecture) + Expo SDK 51	JSI & Fabric untuk performa UI thread terpisah
+Bahasa	TypeScript (strict mode)	Keamanan tipe, lebih mudah refactor
+Animasi & Gesture	React Native Reanimated v4 + react-native-gesture-handler	Animasi berjalan di UI Thread, 60 FPS
+Efek Visual (Shader)	@shopify/react-native-skia (v1.2+)	Akselerasi GPU untuk neon, glitch, blur, partikel
+Styling	NativeWind (TailwindCSS for RN) + glamorous (opsional)	Cepat, konsisten, mendukung dark mode
+State Management	Zustand (global) + MMKV (persist)	Ringan, re-render teroptimasi
+Navigation	Expo Router (file-based)	Sederhana, support deep linking
+Haptic Feedback	expo-haptics	Getaran pendek setiap tekan tombol +1
+Backend & Edge API
+Komponen	Pilihan	Alasan
+API Gateway & Compute	Cloudflare Workers	Latensi terendah (edge network), cold start <5ms
+Framework API	Hono (lightweight, fast)	TypeScript first, middleware sederhana
+Database (Primary)	Supabase (PostgreSQL 15+)	Relational, Row Level Security bawaan, Realtime via WebSocket
+Auth	Supabase Auth (anonymous or email)	Terintegrasi dengan RLS, mudah
+File Storage (opsional)	Supabase Storage	Untuk menyimpan foto bukti hadiah (jika diperlukan)
+Realtime Subscription	Supabase Realtime (via @supabase/realtime-js)	Sinkronisasi streak dan notifikasi server ke client
+Local Storage & Offline First
+Komponen	Pilihan	Alasan
+Key-Value Cepat	MMKV (React Native MMKV)	Jauh lebih cepat dari AsyncStorage, untuk session & cache
+Queue Offline	React Native Queue (atau custom dengan MMKV + retry)	Menyimpan aksi saat offline, kirim saat online lagi
+Monitoring & Build
+Komponen	Pilihan	Alasan
+Error Tracking	Sentry (gratis untuk personal)	Capture crash & slow renders
+Build & Distribution	EAS Build (Expo Application Services)	Build cloud untuk APK & IPA
+Environment Variables	expo-build-properties	Untuk API keys
+5. STRUKTUR DATABASE SUPABASE (Schema)
+sql
+-- Tabel users (extends dari auth.users)
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users(id) PRIMARY KEY,
+  display_name TEXT DEFAULT 'Builder',
+  level INT DEFAULT 1,
+  current_xp INT DEFAULT 0,
+  total_xp INT DEFAULT 0,
+  strength INT DEFAULT 10,
+  endurance INT DEFAULT 8,
+  recovery INT DEFAULT 7,
+  flexibility INT DEFAULT 6,
+  streak_days INT DEFAULT 0,
+  last_streak_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabel missions (predefined atau dinamis)
+CREATE TABLE public.missions (
+  id SERIAL PRIMARY KEY,
+  date DATE NOT NULL UNIQUE,
+  push_up_target INT NOT NULL,
+  pull_up_target INT NOT NULL,
+  sit_up_target INT NOT NULL,
+  side_plank_seconds_target INT NOT NULL,
+  reward_description TEXT NOT NULL -- "Susu UHT 250ml"
+);
+
+-- Tabel progress harian user
+CREATE TABLE public.user_progress (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  mission_date DATE NOT NULL,
+  push_up_done INT DEFAULT 0,
+  pull_up_done INT DEFAULT 0,
+  sit_up_done INT DEFAULT 0,
+  side_plank_done_seconds INT DEFAULT 0,
+  is_completed BOOLEAN DEFAULT FALSE,
+  xp_earned INT DEFAULT 0,
+  completed_at TIMESTAMPTZ,
+  UNIQUE(user_id, mission_date)
+);
+
+-- Tabel log kenaikan level (untuk history)
+CREATE TABLE public.level_up_logs (
+  id SERIAL PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id),
+  old_level INT,
+  new_level INT,
+  status_points_gained INT DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tabel cooldown otot (dihitung oleh backend atau client)
+CREATE TABLE public.muscle_cooldown (
+  user_id UUID REFERENCES public.profiles(id),
+  muscle_group TEXT CHECK (muscle_group IN ('chest','back','core')),
+  last_trained_at TIMESTAMPTZ,
+  cooldown_until TIMESTAMPTZ,
+  PRIMARY KEY (user_id, muscle_group)
+);
+
+-- Row Level Security (RLS) policies
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Sama untuk user_progress, muscle_cooldown, level_up_logs
+6. PANDUAN IMPLEMENTASI UNTUK CLAUDE CLI
+Berikut langkah-langkah konkret yang harus dijalankan oleh AI (Claude CLI) untuk memulai pembangunan.
+
+6.1. Inisialisasi Proyek
+bash
+# Buat folder proyek
+mkdir solo-leveling-fitness
+cd solo-leveling-fitness
+
+# Inisialisasi Expo dengan TypeScript
+npx create-expo-app . --template expo-template-typescript
+
+# Install dependencies inti (Fase 1)
+npx expo install react-native-screens react-native-safe-area-context
+npm install zustand react-native-mmkv expo-haptics expo-av
+npm install nativewind tailwindcss-react-native
+
+# Install untuk Fase 2 & 3 (nanti, tapi biar sekalian)
+npm install @supabase/supabase-js @supabase/realtime-js hono
+npm install react-native-reanimated react-native-gesture-handler @shopify/react-native-skia
+npm install expo-build-properties expo-notifications
+6.2. Struktur Folder yang Direkomendasikan
+text
+src/
+├── components/
+│   ├── StatusWindow.tsx      # hologram status utama
+│   ├── MissionCard.tsx       # kartu misi harian
+│   ├── XPBar.tsx             # XP bar dengan animasi
+│   └── GlitchText.tsx        # komponen teks glitch
+├── stores/
+│   ├── useProfileStore.ts    # Zustand store untuk level, XP, status points
+│   ├── useMissionStore.ts    # misi harian, progres lokal
+│   └── useCooldownStore.ts   # cooldown otot
+├── services/
+│   ├── supabaseClient.ts     # inisialisasi Supabase
+│   ├── workerApi.ts          # panggilan ke Cloudflare Worker
+│   └── offlineQueue.ts       # antrian offline
+├── screens/
+│   ├── HomeScreen.tsx        # tampilan utama system window
+│   ├── MissionScreen.tsx     # detail misi & tombol +1
+│   └── ProfileScreen.tsx     # alokasi status point
+├── utils/
+│   ├── xpCalculator.ts       # hitung XP dari repetisi
+│   ├── cooldownLogic.ts      # cek apakah otot siap
+│   └── rewards.ts            # daftar hadiah per level/streak
+└── App.tsx
+6.3. Environment Variables
+Buat file .env (jangan commit ke git):
+
+text
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_WORKER_ENDPOINT=https://your-worker.workers.dev
+6.4. Kode Contoh Minimal untuk Memulai (Core Store)
+typescript
+// stores/useProfileStore.ts
+import { create } from 'zustand';
+import { MMKV } from 'react-native-mmkv';
+
+const storage = new MMKV();
+
+interface ProfileStore {
+  level: number;
+  xp: number;
+  strength: number;
+  endurance: number;
+  recovery: number;
+  flexibility: number;
+  addXP: (amount: number) => void;
+  allocatePoint: (stat: 'strength'|'endurance'|'recovery'|'flexibility') => void;
+}
+
+export const useProfileStore = create<ProfileStore>((set, get) => ({
+  level: storage.getNumber('level') ?? 1,
+  xp: storage.getNumber('xp') ?? 0,
+  strength: storage.getNumber('strength') ?? 10,
+  endurance: storage.getNumber('endurance') ?? 8,
+  recovery: storage.getNumber('recovery') ?? 7,
+  flexibility: storage.getNumber('flexibility') ?? 6,
+
+  addXP: (amount) => {
+    const newXP = get().xp + amount;
+    const currentLevel = get().level;
+    let newLevel = currentLevel;
+    let remainingXP = newXP;
+    while (remainingXP >= 100) {
+      newLevel++;
+      remainingXP -= 100;
+    }
+    set({ xp: remainingXP, level: newLevel });
+    storage.set('xp', remainingXP);
+    storage.set('level', newLevel);
+    if (newLevel > currentLevel) {
+      // Trigger level up animation & sound
+    }
+  },
+
+  allocatePoint: (stat) => {
+    set((state) => {
+      const newVal = state[stat] + 1;
+      storage.set(stat, newVal);
+      return { [stat]: newVal };
+    });
+  },
+}));
+6.5. Cloudflare Worker (Hono) – Contoh Endpoint
+typescript
+// worker/src/index.ts
+import { Hono } from 'hono';
+import { createClient } from '@supabase/supabase-js';
+
+const app = new Hono();
+
+app.post('/api/progress', async (c) => {
+  const { userId, missionDate, pushUp, pullUp, sitUp, plankSec } = await c.req.json();
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_KEY);
+  
+  // Hitung XP
+  const xp = (pushUp * 2) + (pullUp * 4) + (sitUp * 1) + Math.floor(plankSec / 10);
+  
+  const { data, error } = await supabase
+    .from('user_progress')
+    .upsert({
+      user_id: userId,
+      mission_date: missionDate,
+      push_up_done: pushUp,
+      pull_up_done: pullUp,
+      sit_up_done: sitUp,
+      side_plank_done_seconds: plankSec,
+      xp_earned: xp,
+      is_completed: true,
+      completed_at: new Date(),
+    });
+  
+  if (error) return c.json({ error }, 500);
+  return c.json({ xp, message: 'Progress saved' });
+});
+
+export default app;
+6.6. Aturan Self-Check Hadiah (Tidak perlu diprogram otomatis)
+Penting: Sistem TIDAK akan memverifikasi apakah pengguna benar-benar membeli hadiah. Etika pengguna yang menentukan. Aplikasi hanya menampilkan teks: *"Reward: Susu UHT 250ml - Beli sendiri sebagai bentuk apresiasi ke tubuhmu."*
+
+7. DAFTAR PERIKSA (CHECKLIST) SEBELUM BUILD KE PRODUKSI
+Semua state menggunakan Zustand + MMKV, tidak ada AsyncStorage.
+
+Animasi menggunakan Reanimated v4, bukan Animated API bawaan.
+
+Semua fetch ke Worker memiliki timeout & retry (3x).
+
+Timer plank berhenti jika app ke background (gunakan AppState).
+
+Cooldown otot di-reset setiap tengah malam berdasarkan last_trained_at.
+
+Ikon aplikasi menggunakan gambar pedang atau sistem window.
+
+Mode offline: misi tetap bisa dicatat, disimpan ke queue, sinkron saat online.
+
+Tidak ada iklan atau tracking analytics (kecuali Sentry untuk error).
+
+8. KESIMPULAN & COMMAND UNTUK CLAUDE CLI
+Perintah yang harus dijalankan oleh Claude CLI untuk memulai build:
+
+text
+"Berdasarkan dokumen TDD di atas, mulai implementasi Fase 1 dengan:
+1. Inisialisasi proyek Expo TypeScript.
+2. Buat store Zustand untuk profile dan mission (menggunakan MMKV).
+3. Buat komponen StatusWindow dengan XP bar dan teks neon.
+4. Buat layar misi dengan tombol +1 untuk push-up, pull-up, sit-up, dan timer untuk side plank.
+5. Implementasikan logika XP dan level.
+6. Simpan data ke MMKV setiap kali ada perubahan.
+7. Tampilkan modal hadiah setelah misi selesai.
+Gunakan struktur folder dan kode contoh yang diberikan. Jangan lupa install semua dependencies yang diperlukan."
+Dokumen ini sudah lengkap dan siap dieksekusi. Tidak ada ambiguitas. Silakan salin seluruh teks di atas dan berikan ke Claude CLI (atau AI coding lain) untuk memulai pembangunan. Jika ada pertanyaan teknis lebih lanjut, saya siap membantu.
+
