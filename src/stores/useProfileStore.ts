@@ -15,6 +15,7 @@ interface ProfileState {
 
   addXP: (amount: number) => number;
   allocatePoint: (stat: StatName) => void;
+  rehydrate: () => void;
 }
 
 function loadNum(key: string, fallback: number): number {
@@ -70,6 +71,19 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     set({
       [stat]: newVal,
       unallocatedPoints: state.unallocatedPoints - 1,
+    });
+  },
+
+  rehydrate: () => {
+    set({
+      level: loadNum('profile_level', get().level),
+      currentXP: loadNum('profile_currentXP', get().currentXP),
+      totalXP: loadNum('profile_totalXP', get().totalXP),
+      unallocatedPoints: loadNum('profile_unallocatedPoints', get().unallocatedPoints),
+      strength: loadNum('profile_strength', get().strength),
+      endurance: loadNum('profile_endurance', get().endurance),
+      recovery: loadNum('profile_recovery', get().recovery),
+      flexibility: loadNum('profile_flexibility', get().flexibility),
     });
   },
 }));

@@ -30,6 +30,7 @@ interface MissionState {
   setPlankSecondsDone: (seconds: number) => void;
   checkAndCompleteMission: () => boolean;
   resetDailyIfNeeded: () => void;
+  rehydrate: () => void;
 }
 
 function loadNum(key: string, fallback: number): number {
@@ -60,7 +61,7 @@ export const useMissionStore = create<MissionState>((set, get) => ({
   pullUpDone: loadNum('mission_pullUpDone', 0),
   sitUpDone: loadNum('mission_sitUpDone', 0),
   plankSecondsDone: loadNum('mission_plankDone', 0),
-  isMissionComplete: storage.getBoolean('mission_isComplete') ?? false,
+  isMissionComplete: storage.getBoolean('mission_isComplete') === true,
   lastMissionDate: loadStr('mission_lastDate', null),
   streakDays: loadNum('mission_streakDays', 0),
   lastStreakDate: loadStr('mission_lastStreakDate', null),
@@ -202,5 +203,19 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     }
 
     useCooldownStore.getState().checkAndResetExpired();
+  },
+
+  rehydrate: () => {
+    set({
+      pushUpDone: loadNum('mission_pushUpDone', 0),
+      pullUpDone: loadNum('mission_pullUpDone', 0),
+      sitUpDone: loadNum('mission_sitUpDone', 0),
+      plankSecondsDone: loadNum('mission_plankDone', 0),
+      isMissionComplete: storage.getBoolean('mission_isComplete') === true,
+      lastMissionDate: loadStr('mission_lastDate', null),
+      streakDays: loadNum('mission_streakDays', 0),
+      lastStreakDate: loadStr('mission_lastStreakDate', null),
+      claimedMilestones: loadClaimed(),
+    });
   },
 }));

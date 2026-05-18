@@ -12,6 +12,7 @@ interface CooldownState {
   getRemainingForGroup: (group: MuscleGroup) => number;
   startAllCooldowns: () => void;
   checkAndResetExpired: () => void;
+  rehydrate: () => void;
 }
 
 function loadTimestamp(key: string): number | null {
@@ -86,5 +87,13 @@ export const useCooldownStore = create<CooldownState>((set, get) => ({
     if (Object.keys(updates).length > 0) {
       set(updates);
     }
+  },
+
+  rehydrate: () => {
+    set({
+      chestLastTrained: loadTimestamp('cooldown_chest'),
+      backLastTrained: loadTimestamp('cooldown_back'),
+      coreLastTrained: loadTimestamp('cooldown_core'),
+    });
   },
 }));
