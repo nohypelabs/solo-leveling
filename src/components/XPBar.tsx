@@ -1,5 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 
 interface XPBarProps {
   current: number;
@@ -9,17 +17,66 @@ interface XPBarProps {
 
 export function XPBar({ current, max = 100, showLabel = true }: XPBarProps) {
   const progress = Math.min(current / max, 1);
+  const width = useSharedValue(0);
+  const glowOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    width.value = withTiming(progress, {
+      duration: 500,
+      easing: Easing.inOut(Easing.quad),
+    });
+  }, [progress]);
+
+  useEffect(() => {
+    if (progress >= 0.9) {
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 800 }),
+          withTiming(0.2, { duration: 800 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      glowOpacity.value = withTiming(0);
+    }
+  }, [progress >= 0.9]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${width.value * 100}%`,
+  }));
+
+  const borderStyle = useAnimatedStyle(() => ({
+    borderColor: `rgba(0, 243, 255, ${0.3 + glowOpacity.value * 0.5})`,
+    shadowColor: '#00f3ff',
+    shadowOpacity: glowOpacity.value,
+    shadowRadius: 8,
+  }));
 
   return (
-    <View className="w-full">
-      <View className="h-4 rounded-full bg-gray-800 border border-sl-cyan/30 overflow-hidden">
-        <View
-          className="h-full rounded-full bg-sl-cyan"
-          style={{ width: `${progress * 100}%` }}
+    <View style={{ width: '100%' }}>
+      <Animated.View
+        style={[borderStyle, {
+          height: 16,
+          borderRadius: 9999,
+          backgroundColor: '#1f2937',
+          overflow: 'hidden',
+          borderWidth: 1,
+        }]}
+      >
+        <Animated.View
+          style={[fillStyle, {
+            height: '100%',
+            borderRadius: 9999,
+            backgroundColor: '#00f3ff',
+            shadowColor: '#00f3ff',
+            shadowOpacity: 0.5,
+            shadowRadius: 4,
+          }]}
         />
-      </View>
+      </Animated.View>
       {showLabel && (
-        <Text className="text-sl-text text-xs mt-1 text-center font-bold">
+        <Text style={{ color: '#e0e0e0', fontSize: 12, marginTop: 4, textAlign: 'center', fontWeight: 'bold' }}>
           {current} / {max} XP
         </Text>
       )}

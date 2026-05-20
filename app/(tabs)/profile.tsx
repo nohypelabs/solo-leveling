@@ -11,11 +11,12 @@ const STAT_CONFIG: {
   label: string;
   icon: string;
   color: string;
+  hex: string;
 }[] = [
-  { key: 'strength', label: 'STRENGTH', icon: '⚔️', color: 'bg-red-500' },
-  { key: 'endurance', label: 'ENDURANCE', icon: '🛡️', color: 'bg-blue-500' },
-  { key: 'recovery', label: 'RECOVERY', icon: '💚', color: 'bg-green-500' },
-  { key: 'flexibility', label: 'FLEXIBILITY', icon: '🌀', color: 'bg-purple-500' },
+  { key: 'strength', label: 'STRENGTH', icon: '⚔️', color: 'bg-red-500', hex: '#ef4444' },
+  { key: 'endurance', label: 'ENDURANCE', icon: '🛡️', color: 'bg-blue-500', hex: '#3b82f6' },
+  { key: 'recovery', label: 'RECOVERY', icon: '💚', color: 'bg-green-500', hex: '#22c55e' },
+  { key: 'flexibility', label: 'FLEXIBILITY', icon: '🌀', color: 'bg-purple-500', hex: '#a855f7' },
 ];
 
 export default function ProfileScreen() {
@@ -28,40 +29,56 @@ export default function ProfileScreen() {
     profile.allocatePoint(stat);
   }
 
+  const canAllocate = profile.unallocatedPoints > 0;
+
   return (
-    <View className="flex-1 bg-sl-bg px-4 pt-2 gap-4">
-      <View className="bg-sl-bg border border-sl-cyan/30 rounded-lg p-4 gap-3">
+    <View style={{ flex: 1, backgroundColor: '#0a0a0a', paddingHorizontal: 16, paddingTop: 8, gap: 16 }}>
+      <View
+        style={{
+          backgroundColor: '#0a0a0a',
+          borderWidth: 1,
+          borderColor: 'rgba(0, 243, 255, 0.3)',
+          borderRadius: 8,
+          padding: 16,
+          gap: 12,
+        }}
+      >
         <GlitchText className="text-center text-sm tracking-widest">
           BUILDER PROFILE
         </GlitchText>
 
-        <View className="items-center gap-1">
+        <View style={{ alignItems: 'center', gap: 4 }}>
           <GlitchText className="text-2xl">Lv. {profile.level}</GlitchText>
           <XPBar current={profile.currentXP} />
-          <Text className="text-gray-500 text-xs">
+          <Text style={{ color: '#6b7280', fontSize: 12 }}>
             Total XP: {profile.totalXP}
           </Text>
         </View>
 
-        <View className="items-center mt-2">
-          <Text className="text-sl-text text-sm">🔥 Streak</Text>
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={{ color: '#e0e0e0', fontSize: 14 }}>🔥 Streak</Text>
           <GlitchText variant="pink" className="text-lg">
             {mission.streakDays} days
           </GlitchText>
         </View>
       </View>
 
-      <View className="bg-sl-bg border border-sl-cyan/30 rounded-lg p-4 gap-2">
-        <View className="flex-row justify-between items-center mb-2">
+      <View
+        style={{
+          backgroundColor: '#0a0a0a',
+          borderWidth: 1,
+          borderColor: 'rgba(0, 243, 255, 0.3)',
+          borderRadius: 8,
+          padding: 16,
+          gap: 8,
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <GlitchText variant="pink" className="text-sm tracking-widest">
             STATUS POINTS
           </GlitchText>
           <Text
-            className={`text-sm font-bold ${
-              profile.unallocatedPoints > 0
-                ? 'text-sl-cyan'
-                : 'text-gray-500'
-            }`}
+            style={{ fontSize: 14, fontWeight: 'bold', color: canAllocate ? '#00f3ff' : '#6b7280' }}
           >
             Unallocated: {profile.unallocatedPoints}
           </Text>
@@ -70,42 +87,52 @@ export default function ProfileScreen() {
         {STAT_CONFIG.map((stat) => (
           <View
             key={stat.key}
-            className="flex-row items-center justify-between py-2 border-b border-gray-800"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: '#1f2937',
+            }}
           >
-            <View className="flex-row items-center gap-2 flex-1">
-              <Text className="text-lg">{stat.icon}</Text>
-              <Text className="text-sl-text text-sm font-bold">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <Text style={{ fontSize: 18 }}>{stat.icon}</Text>
+              <Text style={{ color: '#e0e0e0', fontSize: 14, fontWeight: 'bold' }}>
                 {stat.label}
               </Text>
             </View>
 
-            <View className="flex-row items-center gap-3">
-              <View className="w-24 h-2 rounded-full bg-gray-800 overflow-hidden">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 96, height: 8, borderRadius: 9999, backgroundColor: '#1f2937', overflow: 'hidden' }}>
                 <View
-                  className={`h-full rounded-full ${stat.color}`}
                   style={{
+                    height: '100%',
+                    borderRadius: 9999,
+                    backgroundColor: stat.hex,
                     width: `${Math.min((profile[stat.key] / 50) * 100, 100)}%`,
                   }}
                 />
               </View>
-              <Text className="text-sl-text text-sm font-bold w-8 text-right">
+              <Text style={{ color: '#e0e0e0', fontSize: 14, fontWeight: 'bold', width: 32, textAlign: 'right' }}>
                 {profile[stat.key]}
               </Text>
               <Pressable
                 onPress={() => handleAllocate(stat.key)}
-                disabled={profile.unallocatedPoints <= 0}
-                className={`w-8 h-8 rounded-full items-center justify-center border ${
-                  profile.unallocatedPoints > 0
-                    ? 'bg-sl-cyan/20 border-sl-cyan active:bg-sl-cyan/40'
-                    : 'bg-gray-900 border-gray-700'
-                }`}
+                disabled={!canAllocate}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9999,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  backgroundColor: canAllocate ? 'rgba(0, 243, 255, 0.2)' : '#111827',
+                  borderColor: canAllocate ? '#00f3ff' : '#374151',
+                }}
               >
                 <Text
-                  className={`font-bold ${
-                    profile.unallocatedPoints > 0
-                      ? 'text-sl-cyan'
-                      : 'text-gray-700'
-                  }`}
+                  style={{ fontWeight: 'bold', color: canAllocate ? '#00f3ff' : '#374151' }}
                 >
                   +
                 </Text>

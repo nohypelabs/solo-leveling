@@ -1,6 +1,14 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+} from 'react-native-reanimated';
 import { GlitchText } from './GlitchText';
 
 interface MissionCardProps {
@@ -23,72 +31,166 @@ export function MissionCard({
   isComplete,
 }: MissionCardProps) {
   const progress = Math.min(done / target, 1);
+  const fillWidth = useSharedValue(0);
+  const buttonScale = useSharedValue(1);
+  const checkScale = useSharedValue(0);
+  const cooldownPulse = useSharedValue(1);
+
+  React.useEffect(() => {
+    fillWidth.value = withTiming(progress, { duration: 400 });
+  }, [progress]);
+
+  React.useEffect(() => {
+    if (isComplete) {
+      checkScale.value = withSpring(1, { damping: 8, stiffness: 200 });
+    }
+  }, [isComplete]);
+
+  React.useEffect(() => {
+    if (disabled && !isComplete) {
+      cooldownPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 1000 }),
+          withTiming(1, { duration: 1000 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      cooldownPulse.value = withTiming(1);
+    }
+  }, [disabled && !isComplete]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fillWidth.value * 100}%`,
+  }));
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+
+  const checkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
+  const cooldownStyle = useAnimatedStyle(() => ({
+    opacity: cooldownPulse.value,
+  }));
 
   function handlePress() {
     if (disabled || isComplete) return;
+    buttonScale.value = withSpring(0.9, { damping: 10 }, () => {
+      buttonScale.value = withSpring(1, { damping: 8, stiffness: 200 });
+    });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onIncrement();
   }
 
+  const borderColor = isComplete
+    ? 'rgba(34, 197, 94, 0.5)'
+    : disabled
+      ? 'rgba(55, 65, 81, 0.3)'
+      : 'rgba(0, 243, 255, 0.2)';
+
+  const glowStyle = isComplete
+    ? { shadowColor: '#22c55e', shadowOpacity: 0.3, shadowRadius: 8 }
+    : disabled
+      ? {}
+      : { shadowColor: '#00f3ff', shadowOpacity: 0.2, shadowRadius: 6 };
+
   return (
     <View
-      className={`bg-gray-900/50 border rounded-lg p-3 ${
-        isComplete
-          ? 'border-green-500/50'
-          : disabled
-            ? 'border-gray-700/30 opacity-50'
-            : 'border-sl-cyan/20'
-      }`}
+      style={[{
+        backgroundColor: 'rgba(17, 24, 39, 0.5)',
+        borderWidth: 1,
+        borderColor,
+        borderRadius: 8,
+        padding: 12,
+      }, glowStyle]}
     >
-      <View className="flex-row justify-between items-center mb-2">
-        <GlitchText className="text-sm tracking-wider">
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <GlitchText className="text-sm tracking-wider" animated>
           {exerciseName}
         </GlitchText>
         <Text
-          className={`text-xs font-bold ${
-            isComplete ? 'text-green-400' : 'text-sl-text'
-          }`}
+          style={{
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: isComplete ? '#4ade80' : '#e0e0e0',
+          }}
         >
           {done}/{target} {unit}
           {isComplete ? ' ✓' : ''}
         </Text>
       </View>
 
-      <View className="h-2 rounded-full bg-gray-800 overflow-hidden mb-3">
-        <View
-          className={`h-full rounded-full ${isComplete ? 'bg-green-500' : 'bg-sl-cyan'}`}
-          style={{ width: `${progress * 100}%` }}
+      <View style={{ height: 8, borderRadius: 9999, backgroundColor: '#1f2937', overflow: 'hidden', marginBottom: 12 }}>
+        <Animated.View
+          style={[fillStyle, {
+            height: '100%',
+            borderRadius: 9999,
+            backgroundColor: isComplete ? '#22c55e' : '#00f3ff',
+          }]}
         />
       </View>
 
-      <View className="items-center">
+      <View style={{ alignItems: 'center' }}>
         {isComplete ? (
-          <View className="w-14 h-14 rounded-full bg-green-900/30 border border-green-500/50 items-center justify-center">
-            <Text className="text-green-400 text-xl">✓</Text>
-          </View>
+          <Animated.View
+            style={[checkAnimatedStyle, {
+              width: 56,
+              height: 56,
+              borderRadius: 9999,
+              backgroundColor: 'rgba(20, 83, 45, 0.3)',
+              borderWidth: 1,
+              borderColor: 'rgba(34, 197, 94, 0.5)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }]}
+          >
+            <Text style={{ color: '#4ade80', fontSize: 20 }}>✓</Text>
+          </Animated.View>
         ) : (
           <Pressable
             onPress={handlePress}
             disabled={disabled}
-            className={`w-14 h-14 rounded-full items-center justify-center ${
-              disabled
-                ? 'bg-gray-800 border border-gray-700/30'
-                : 'bg-sl-pink/20 border border-sl-pink active:bg-sl-pink/40'
-            }`}
           >
-            <Text
-              className={`text-2xl font-bold ${disabled ? 'text-gray-600' : 'text-sl-pink'}`}
+            <Animated.View
+              style={[buttonAnimatedStyle, {
+                width: 56,
+                height: 56,
+                borderRadius: 9999,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                backgroundColor: disabled
+                  ? '#1f2937'
+                  : 'rgba(255, 0, 204, 0.2)',
+                borderColor: disabled
+                  ? 'rgba(55, 65, 81, 0.3)'
+                  : '#ff00cc',
+              }]}
             >
-              +1
-            </Text>
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  color: disabled ? '#4b5563' : '#ff00cc',
+                }}
+              >
+                +1
+              </Text>
+            </Animated.View>
           </Pressable>
         )}
       </View>
 
       {disabled && !isComplete && (
-        <Text className="text-gray-600 text-xs text-center mt-2">
+        <Animated.Text
+          style={[cooldownStyle, { color: '#4b5563', fontSize: 12, textAlign: 'center', marginTop: 8 }]}
+        >
           COOLDOWN ACTIVE
-        </Text>
+        </Animated.Text>
       )}
     </View>
   );

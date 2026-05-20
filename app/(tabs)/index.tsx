@@ -9,8 +9,8 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-sl-bg px-4 pt-2"
-      contentContainerStyle={{ gap: 12, paddingBottom: 20 }}
+      style={{ flex: 1, backgroundColor: '#0a0a0a' }}
+      contentContainerStyle={{ gap: 12, paddingBottom: 20, paddingHorizontal: 16, paddingTop: 8 }}
     >
       <StatusWindow />
       {isCooldown() && <CooldownTimer />}

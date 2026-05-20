@@ -25,7 +25,16 @@ export function CooldownTimer() {
   if (!cooldown.isAnyOnCooldown()) return null;
 
   return (
-    <View className="bg-sl-bg border border-sl-pink/30 rounded-lg p-4 gap-2">
+    <View
+      style={{
+        backgroundColor: '#0a0a0a',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 0, 204, 0.3)',
+        borderRadius: 8,
+        padding: 16,
+        gap: 8,
+      }}
+    >
       <GlitchText variant="pink" className="text-center text-sm tracking-widest">
         COOLDOWN ACTIVE
       </GlitchText>
@@ -34,18 +43,18 @@ export function CooldownTimer() {
         const remaining = cooldown.getRemainingForGroup(group.key);
         if (remaining <= 0) return null;
         return (
-          <View key={group.key} className="flex-row justify-between items-center">
-            <Text className="text-sl-text text-xs">
+          <View key={group.key} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: '#e0e0e0', fontSize: 12 }}>
               {group.emoji} {group.label}
             </Text>
-            <Text className="text-sl-pink font-bold text-sm font-mono">
+            <Text style={{ color: '#ff00cc', fontWeight: 'bold', fontSize: 14, fontFamily: 'monospace' }}>
               {formatCooldown(remaining)}
             </Text>
           </View>
         );
       })}
 
-      <Text className="text-gray-500 text-xs text-center mt-1">
+      <Text style={{ color: '#6b7280', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
         Missions locked until cooldown expires
       </Text>
     </View>
