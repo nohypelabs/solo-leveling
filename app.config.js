@@ -36,7 +36,6 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#0a0a0a",
       },
-      edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
       permissions: [
         "CAMERA",

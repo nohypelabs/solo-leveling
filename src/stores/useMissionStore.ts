@@ -9,7 +9,6 @@ import {
   getMilestoneBonus,
 } from '@/utils/streakLogic';
 import { getRewardForDay, type Reward } from '@/utils/rewards';
-import { playQuestCompleteSound } from '@/utils/sound';
 import { useProfileStore } from './useProfileStore';
 import { useCooldownStore } from './useCooldownStore';
 
@@ -154,9 +153,6 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
     // Get reward
     const reward = getRewardForDay(newStreak);
-
-    // Play sound
-    playQuestCompleteSound();
 
     // Persist
     storage.set('mission_isComplete', true);

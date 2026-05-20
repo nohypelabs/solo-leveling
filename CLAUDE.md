@@ -10,124 +10,98 @@ The full technical design document is in `roadmap_sistemleveling_gofur.txt` (wri
 
 ## Current Status
 
-**Pre-implementation.** The project currently contains only the TDD. Implementation starts from Phase 1 (MVP Core).
+**Phase 1 (MVP Core) is implemented.** Zustand stores, MMKV persistence, manual +1 counters, plank timer, XP/level logic, cooldown system, streak tracking, reward modal, and status point allocation are all working. Phase 2+ (backend, animations, polish) is not yet started.
 
-## Tech Stack
-
-- **Frontend:** React Native 0.76+ (New Architecture) + Expo SDK 51, TypeScript (strict)
-- **Styling:** NativeWind (TailwindCSS for RN), dark-only theme
-- **State:** Zustand (global) + MMKV (persist) — no AsyncStorage
-- **Animation:** React Native Reanimated v4 + react-native-gesture-handler
-- **Visual Effects:** @shopify/react-native-skia (GPU-accelerated neon, glitch, particles)
-- **Navigation:** Expo Router (file-based)
-- **Backend:** Cloudflare Workers + Hono (TypeScript API framework)
-- **Database:** Supabase (PostgreSQL with RLS) + Supabase Realtime
-- **Auth:** Supabase Auth (anonymous or email)
-- **Offline:** MMKV-based queue with retry on reconnect
-- **Build:** EAS Build (Expo Application Services)
-- **Error Tracking:** Sentry
-
-## Architecture
-
-### Four-Phase Roadmap
-
-1. **Phase 1 (MVP Core, weeks 1-2):** Local-only. Zustand stores, MMKV persistence, manual +1 counters, plank timer, XP/level logic, reward modal. No backend.
-2. **Phase 2 (Cloud & Realtime, weeks 3-4):** Supabase setup, auth, Cloudflare Worker API endpoints, offline queue, realtime streak sync.
-3. **Phase 3 (Animations, weeks 5-6):** Glitch text, hologram 3D cards (gyroscope), confetti particles, sound effects (expo-av), Skia neon borders.
-4. **Phase 4 (Polish, weeks 7-8):** Daily push notifications, error handling, offline resilience, APK/IPA build.
-
-### Planned Folder Structure
-
-src/
-├── components/ # StatusWindow, MissionCard, XPBar, GlitchText
-├── stores/ # Zustand stores: useProfileStore, useMissionStore, useCooldownStore
-├── services/ # supabaseClient, workerApi, offlineQueue
-├── screens/ # HomeScreen, MissionScreen, ProfileScreen
-├── utils/ # xpCalculator, cooldownLogic, rewards
-└── App.tsx
-
-
-### Key Domain Rules
-
-#### Phase 1 Mission Defaults (hardcoded until dynamic missions are implemented)
-- Push-up target: 15
-- Pull-up target: 5
-- Sit-up target: 10
-- Side plank target: 60 seconds
-
-#### XP Formula
-- Push-up × 2 XP per rep
-- Pull-up × 4 XP per rep
-- Sit-up × 1 XP per rep
-- Side plank: seconds ÷ 10 (floored) XP
-
-#### Level Up
-- Every 100 XP → +1 level → +1 Status Point
-
-#### Muscle Cooldown Mapping
-- Push-up → chest group → cooldown 48 hours
-- Pull-up → back group → cooldown 48 hours
-- Sit-up + side plank → core group → cooldown 48 hours
-
-After completing all missions, **all three groups go into cooldown** for 48 hours. During cooldown, the system must block starting a new mission and show a countdown timer.
-
-#### Status Points (Phase 1)
-- Each level up gives 1 Status Point.
-- User can allocate points to Strength, Endurance, Recovery, or Flexibility.
-- **In Phase 1, these stats are stored but have NO gameplay effect yet** (future phases will implement fatigue reduction, recovery speed, etc.).
-- UI must allow allocation and display current stat values.
-
-#### Physical Rewards (honor system, no verification)
-After completing a daily mission, the app displays a reward suggestion. Examples:
-
-| Day | Reward |
-|-----|--------|
-| 1   | Susu UHT 250ml |
-| 3   | Vitamin C / jus jeruk |
-| 7   | 2 telur rebus |
-| 14  | 1 pisang |
-| 30  | Pijat / foam roller |
-
-#### Streak Bonus XP
-- Streak 3 days → +10 XP bonus
-- Streak 7 days → +25 XP bonus
-- Streak 14 days → +50 XP bonus
-- Streak 30 days → +100 XP bonus
-
-Bonus XP awarded automatically when streak milestone is reached (on mission completion).
-
-### Database Schema (Supabase)
-
-Tables: `profiles` (extends auth.users), `missions`, `user_progress`, `level_up_logs`, `muscle_cooldown`. All tables have Row Level Security scoped to `auth.uid()`.
-
-## Commands (once implemented)
+## Commands
 
 ```bash
-# Setup
-npx create-expo-app . --template expo-template-typescript
-npx expo install react-native-screens react-native-safe-area-context
-npm install zustand react-native-mmkv expo-haptics expo-av nativewind tailwindcss-react-native
-
-# Development
+# Development (requires dev client, not Expo Go — MMKV needs native modules)
 npx expo start
+npx expo run:android
+npx expo run:ios
 
-# Build
+# Production builds
 eas build -p android --profile production
 eas build -p ios --profile production
 ```
 
-## Implementation Checklist (from TDD)
+## Tech Stack
 
-- All state uses Zustand + MMKV, never AsyncStorage
-- Animations use Reanimated v4, not RN's built-in Animated API
-- All fetch calls to Worker have timeout + retry (3x)
-- Haptic feedback on every +1 button press (expo-haptics.impactAsync())
-- Haptic + sound on quest complete and level up
-- Side plank timer MUST pause when app goes to background (use AppState). If interrupted, timer resets and user must restart. Show local notification: "Plank interrupted, please restart."
-- Muscle cooldown resets at midnight based on last_trained_at
-- Dark mode only. Background: #0a0a0a, neon cyan: #00f3ff, neon pink: #ff00cc, text: #e0e0e0
-- Offline mode: missions recordable, queued, synced on reconnect
-- Offline queue retry: exponential backoff (1s, 2s, 4s, 8s) max 3 attempts. If still fails, keep in queue and retry on next launch.
-- No ads or analytics tracking (except Sentry for errors)
+- **Runtime:** React Native 0.81+ (New Architecture enabled) + Expo SDK 55, TypeScript strict
+- **Styling:** NativeWind v4 (TailwindCSS for RN), dark-only theme
+- **State:** Zustand v5 + MMKV v4 (no AsyncStorage in production; AsyncStorage is a fallback for Expo Go only)
+- **Animation:** React Native Reanimated v4 + react-native-gesture-handler
+- **Navigation:** Expo Router v6 (file-based routing)
+- **Camera/Pose:** react-native-vision-camera + react-native-esanusi-sensor-pose (ML Kit on Android via custom config plugin)
+- **Haptics/Sound:** expo-haptics + expo-av
+- **Notifications:** expo-notifications (local only, no backend)
+- **Sensors:** expo-sensors (gyroscope for hologram effect), expo-location
+- **Font:** Rajdhani (loaded via @expo-google-fonts/rajdhani)
 
+## Architecture
 
+### Navigation (Expo Router, file-based)
+
+```
+app/
+├── _layout.tsx          # Root layout: font loading, store hydration, MMKV init
+├── (tabs)/
+│   ├── _layout.tsx      # Tab bar config (3 tabs: Status, Missions, Profile)
+│   ├── index.tsx        # StatusWindow — level, XP bar, stat allocation
+│   ├── mission.tsx      # Mission cards, plank timer, cooldown display
+│   └── profile.tsx      # Profile stats overview
+```
+
+### State Management (Zustand + MMKV)
+
+All stores follow the same pattern: load initial values from MMKV at module level, persist on every mutation via `storage.set()`, and expose a `rehydrate()` method called on app startup.
+
+| Store | Purpose | Key State |
+|-------|---------|-----------|
+| `useProfileStore` | Player stats, XP, level | level, currentXP, totalXP, unallocatedPoints, strength/endurance/recovery/flexibility |
+| `useMissionStore` | Daily mission progress | pushUpDone, pullUpDone, sitUpDone, plankSecondsDone, isMissionComplete, streakDays |
+| `useCooldownStore` | 48h muscle group cooldowns | chestLastTrained, backLastTrained, coreLastTrained |
+| `useNotificationStore` | Notification preferences | enabled, time |
+
+**Store hydration order** (in `app/_layout.tsx`): `storage.hydrate()` → profile → cooldown → mission (with `resetDailyIfNeeded`) → notifications.
+
+### Storage Layer (`src/lib/mmkv.ts`)
+
+A unified `storage` object that tries MMKV first (native, fast) and falls back to AsyncStorage + in-memory cache for Expo Go. All stores use this abstraction — never import MMKV or AsyncStorage directly.
+
+### Key Domain Logic
+
+**XP Formula** (in `src/utils/xpCalculator.ts`):
+- Push-up: 2 XP/rep, Pull-up: 4 XP/rep, Sit-up: 1 XP/rep, Plank: 1 XP per 10 seconds (floored)
+
+**Level Up** (in `useProfileStore.addXP`): Every 100 XP → +1 level → +1 Status Point
+
+**Mission Targets** (hardcoded in `useMissionStore.MISSION_TARGETS`): pushUp=15, pullUp=5, sitUp=10, plank=60s
+
+**Cooldown** (in `src/utils/cooldownLogic.ts`): 48h per muscle group. After completing all missions, all 3 groups (chest, back, core) go on cooldown simultaneously.
+
+**Streak** (in `src/utils/streakLogic.ts`): Consecutive daily mission completions. Milestones at 3/7/14/30 days award bonus XP.
+
+**Rewards** (in `src/utils/rewards.ts`): Physical reward suggestions based on streak day (honor system).
+
+### Pose Detection (Camera-based rep counting)
+
+`src/hooks/usePoseDetection.ts` uses react-native-vision-camera frame processor + ML Kit pose detection to count push-up and sit-up reps by tracking joint angles. The custom config plugin `plugins/withMLKitPose.js` injects ML Kit dependencies into the Android build.gradle.
+
+### Native Module
+
+`modules/solo-leveling-ir/` — IR blaster module for Android (transmit IR signals). This is a local Expo module, not an npm package.
+
+### Theme (`src/constants/theme.ts`)
+
+Dark-only. All colors, shadows, borders, fonts, and spacing are exported as constants. Use these — don't hardcode values:
+- Background: `#0a0a0a`, Neon cyan: `#00f3ff`, Neon pink: `#ff00cc`, Text: `#e0e0e0`
+- Font family: Rajdhani (bold/medium/light/regular/semiBold variants)
+
+## Key Constraints
+
+- **MMKV requires native modules** — the app must run via dev client (`expo-dev-client`), not Expo Go. The storage layer has an AsyncStorage fallback for Expo Go but it's lossy.
+- **Side plank timer** must pause on app backgrounding (AppState). If interrupted, timer resets. The plank uses `setPlankSecondsDone` which caps at the 60s target.
+- **Cooldown timestamps** are stored as raw `Date.now()` milliseconds in MMKV. The 48h window is `48 * 60 * 60 * 1000` ms.
+- **No backend yet** — all state is local. Phase 2 will add Supabase + Cloudflare Workers.
+- **All fetch calls to future Worker API** must have timeout + retry (3x, exponential backoff 1s/2s/4s/8s).
