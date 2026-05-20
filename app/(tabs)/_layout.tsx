@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Colors, FontFamilies, Shadows } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, FontFamilies } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
@@ -28,7 +29,7 @@ export default function TabLayout() {
           paddingTop: 6,
         },
         tabBarActiveTintColor: Colors.neonCyan,
-        tabBarInactiveTintColor: '#555',
+        tabBarInactiveTintColor: '#a0a0a0',
         tabBarLabelStyle: {
           fontFamily: FontFamilies.semiBold,
           fontSize: 10,
@@ -38,15 +39,33 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'SYSTEM WINDOW', tabBarLabel: 'Status' }}
+        options={{
+          title: 'SYSTEM WINDOW',
+          tabBarLabel: 'Status',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={size} color={color} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="mission"
-        options={{ title: 'MISSIONS', tabBarLabel: 'Missions' }}
+        options={{
+          title: 'MISSIONS',
+          tabBarLabel: 'Missions',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'barbell' : 'barbell-outline'} size={size} color={color} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'PROFILE', tabBarLabel: 'Profile' }}
+        options={{
+          title: 'PROFILE',
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={size} color={color} />
+          ),
+        }}
       />
     </Tabs>
   );
