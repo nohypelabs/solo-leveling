@@ -85,7 +85,6 @@ export function MissionCard({
     buttonScale.value = withSpring(0.9, { damping: 10 }, () => {
       buttonScale.value = withSpring(1, { damping: 8, stiffness: 200 });
     });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     hapticTap();
     onIncrement();
   }
