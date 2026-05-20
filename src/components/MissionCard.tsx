@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { View, Text, Pressable, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,6 +11,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { GlitchText } from './GlitchText';
+import { Colors, FontFamilies, Shadows, Borders } from '@/constants/theme';
+import { hapticTap } from '@/services/HapticFeedbackService';
 
 interface MissionCardProps {
   exerciseName: string;
@@ -83,6 +86,7 @@ export function MissionCard({
       buttonScale.value = withSpring(1, { damping: 8, stiffness: 200 });
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
     onIncrement();
   }
 
@@ -90,108 +94,131 @@ export function MissionCard({
     ? 'rgba(34, 197, 94, 0.5)'
     : disabled
       ? 'rgba(55, 65, 81, 0.3)'
-      : 'rgba(0, 243, 255, 0.2)';
+      : 'rgba(0, 243, 255, 0.25)';
 
   const glowStyle = isComplete
-    ? { shadowColor: '#22c55e', shadowOpacity: 0.3, shadowRadius: 8 }
+    ? Shadows.neonGreen
     : disabled
       ? {}
-      : { shadowColor: '#00f3ff', shadowOpacity: 0.2, shadowRadius: 6 };
+      : Shadows.neonCyan;
 
   return (
     <View
       style={[{
-        backgroundColor: 'rgba(17, 24, 39, 0.5)',
-        borderWidth: 1,
+        backgroundColor: Colors.card,
+        borderWidth: 0.5,
         borderColor,
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: 12,
+        overflow: 'hidden',
       }, glowStyle]}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <GlitchText className="text-sm tracking-wider" animated>
-          {exerciseName}
-        </GlitchText>
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: 'bold',
-            color: isComplete ? '#4ade80' : '#e0e0e0',
-          }}
-        >
-          {done}/{target} {unit}
-          {isComplete ? ' ✓' : ''}
-        </Text>
-      </View>
-
-      <View style={{ height: 8, borderRadius: 9999, backgroundColor: '#1f2937', overflow: 'hidden', marginBottom: 12 }}>
-        <Animated.View
-          style={[fillStyle, {
-            height: '100%',
-            borderRadius: 9999,
-            backgroundColor: isComplete ? '#22c55e' : '#00f3ff',
-          }]}
-        />
-      </View>
-
-      <View style={{ alignItems: 'center' }}>
-        {isComplete ? (
-          <Animated.View
-            style={[checkAnimatedStyle, {
-              width: 56,
-              height: 56,
-              borderRadius: 9999,
-              backgroundColor: 'rgba(20, 83, 45, 0.3)',
-              borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.5)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }]}
+      <BlurView
+        intensity={20}
+        tint="dark"
+        style={{ padding: 16 }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <GlitchText size={15} animated>
+            {exerciseName}
+          </GlitchText>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: 'bold',
+              fontFamily: FontFamilies.semiBold,
+              color: isComplete ? Colors.neonGreen : Colors.textPrimary,
+              letterSpacing: 1,
+            }}
           >
-            <Text style={{ color: '#4ade80', fontSize: 20 }}>✓</Text>
+            {done}/{target} {unit}
+            {isComplete ? ' ✓' : ''}
+          </Text>
+        </View>
+
+        <View style={{ height: 8, borderRadius: 9999, backgroundColor: Colors.barTrack, overflow: 'hidden', marginBottom: 14 }}>
+          <Animated.View style={[fillStyle, { height: '100%', borderRadius: 9999, overflow: 'hidden' }]}>
+            <LinearGradient
+              colors={isComplete ? [Colors.neonGreenDark, Colors.neonGreen] : [Colors.neonCyan, Colors.neonPink]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
           </Animated.View>
-        ) : (
-          <Pressable
-            onPress={handlePress}
-            disabled={disabled}
-          >
+        </View>
+
+        <View style={{ alignItems: 'center' }}>
+          {isComplete ? (
             <Animated.View
-              style={[buttonAnimatedStyle, {
+              style={[checkAnimatedStyle, {
                 width: 56,
                 height: 56,
                 borderRadius: 9999,
+                backgroundColor: 'rgba(20, 83, 45, 0.3)',
+                borderWidth: 0.5,
+                borderColor: 'rgba(34, 197, 94, 0.5)',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderWidth: 1,
-                backgroundColor: disabled
-                  ? '#1f2937'
-                  : 'rgba(255, 0, 204, 0.2)',
-                borderColor: disabled
-                  ? 'rgba(55, 65, 81, 0.3)'
-                  : '#ff00cc',
               }]}
             >
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: 'bold',
-                  color: disabled ? '#4b5563' : '#ff00cc',
-                }}
-              >
-                +1
-              </Text>
+              <Text style={{ color: Colors.neonGreen, fontSize: 22, fontFamily: FontFamilies.bold }}>✓</Text>
             </Animated.View>
-          </Pressable>
-        )}
-      </View>
+          ) : (
+            <Pressable
+              onPress={handlePress}
+              disabled={disabled}
+            >
+              <Animated.View
+                style={[buttonAnimatedStyle, {
+                  width: 56,
+                  height: 56,
+                  borderRadius: 9999,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  borderWidth: 0.5,
+                  borderColor: disabled ? Colors.borderDark : Colors.neonPink,
+                }, disabled ? {} : Shadows.neonPink]}
+              >
+                <LinearGradient
+                  colors={disabled ? [Colors.disabledBg, Colors.disabledBg] : ['rgba(255, 0, 204, 0.3)', 'rgba(255, 0, 204, 0.15)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center', width: '100%' }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 'bold',
+                      fontFamily: FontFamilies.bold,
+                      color: disabled ? '#4b5563' : Colors.neonPink,
+                      textShadowColor: disabled ? 'transparent' : Colors.neonPink,
+                      textShadowOffset: { width: 0, height: 0 },
+                      textShadowRadius: 8,
+                    }}
+                  >
+                    +1
+                  </Text>
+                </LinearGradient>
+              </Animated.View>
+            </Pressable>
+          )}
+        </View>
 
-      {disabled && !isComplete && (
-        <Animated.Text
-          style={[cooldownStyle, { color: '#4b5563', fontSize: 12, textAlign: 'center', marginTop: 8 }]}
-        >
-          COOLDOWN ACTIVE
-        </Animated.Text>
-      )}
+        {disabled && !isComplete && (
+          <Animated.Text
+            style={[cooldownStyle, {
+              color: Colors.textMuted,
+              fontSize: 11,
+              textAlign: 'center',
+              marginTop: 8,
+              fontFamily: FontFamilies.medium,
+              letterSpacing: 2,
+            }]}
+          >
+            COOLDOWN ACTIVE
+          </Animated.Text>
+        )}
+      </BlurView>
     </View>
   );
 }

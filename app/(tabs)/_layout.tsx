@@ -1,30 +1,52 @@
 import { Tabs } from 'expo-router';
+import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#0a0a0a' },
-        headerTintColor: '#00f3ff',
-        tabBarStyle: {
-          backgroundColor: '#0a0a0a',
-          borderTopColor: '#00f3ff33',
+        headerStyle: {
+          backgroundColor: Colors.background,
+          borderBottomWidth: 0.5,
+          borderBottomColor: 'rgba(0, 243, 255, 0.15)',
         },
-        tabBarActiveTintColor: '#00f3ff',
-        tabBarInactiveTintColor: '#666',
+        headerTintColor: Colors.neonCyan,
+        headerTitleStyle: {
+          fontFamily: FontFamilies.bold,
+          letterSpacing: 3,
+          fontSize: 13,
+          textShadowColor: Colors.neonCyan,
+          textShadowOffset: { width: 0, height: 0 },
+          textShadowRadius: 4,
+        },
+        tabBarStyle: {
+          backgroundColor: Colors.background,
+          borderTopWidth: 0.5,
+          borderTopColor: 'rgba(0, 243, 255, 0.2)',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 6,
+        },
+        tabBarActiveTintColor: Colors.neonCyan,
+        tabBarInactiveTintColor: '#555',
+        tabBarLabelStyle: {
+          fontFamily: FontFamilies.semiBold,
+          fontSize: 10,
+          letterSpacing: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'System Window', tabBarLabel: 'Status' }}
+        options={{ title: 'SYSTEM WINDOW', tabBarLabel: 'Status' }}
       />
       <Tabs.Screen
         name="mission"
-        options={{ title: 'Missions', tabBarLabel: 'Missions' }}
+        options={{ title: 'MISSIONS', tabBarLabel: 'Missions' }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Profile', tabBarLabel: 'Profile' }}
+        options={{ title: 'PROFILE', tabBarLabel: 'Profile' }}
       />
     </Tabs>
   );

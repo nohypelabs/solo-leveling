@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +9,7 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
+import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 
 interface XPBarProps {
   current: number;
@@ -57,26 +59,34 @@ export function XPBar({ current, max = 100, showLabel = true }: XPBarProps) {
     <View style={{ width: '100%' }}>
       <Animated.View
         style={[borderStyle, {
-          height: 16,
+          height: 18,
           borderRadius: 9999,
-          backgroundColor: '#1f2937',
+          backgroundColor: Colors.barTrack,
           overflow: 'hidden',
           borderWidth: 1,
         }]}
       >
         <Animated.View
-          style={[fillStyle, {
-            height: '100%',
-            borderRadius: 9999,
-            backgroundColor: '#00f3ff',
-            shadowColor: '#00f3ff',
-            shadowOpacity: 0.5,
-            shadowRadius: 4,
-          }]}
-        />
+          style={[fillStyle, { height: '100%', borderRadius: 9999, overflow: 'hidden' }]}
+        >
+          <LinearGradient
+            colors={[Colors.neonCyan, Colors.neonPink]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
       </Animated.View>
       {showLabel && (
-        <Text style={{ color: '#e0e0e0', fontSize: 12, marginTop: 4, textAlign: 'center', fontWeight: 'bold' }}>
+        <Text style={{
+          color: Colors.textPrimary,
+          fontSize: 12,
+          marginTop: 4,
+          textAlign: 'center',
+          fontWeight: 'bold',
+          fontFamily: FontFamilies.semiBold,
+          letterSpacing: 1,
+        }}>
           {current} / {max} XP
         </Text>
       )}

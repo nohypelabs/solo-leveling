@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, Modal, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GlitchText } from './GlitchText';
 import { Confetti } from './Confetti';
+import { Colors, FontFamilies, Shadows } from '@/constants/theme';
+import { hapticQuestComplete } from '@/services/HapticFeedbackService';
 import type { Reward } from '@/utils/rewards';
 
 interface RewardModalProps {
@@ -44,79 +47,109 @@ export function RewardModal({
   }));
 
   function handleClaim() {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticQuestComplete();
     onDismiss();
   }
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Confetti visible={visible} />
-      <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.8)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.85)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
         <Animated.View
           style={[
             cardStyle,
             {
-              shadowColor: '#00f3ff',
-              shadowOpacity: 0.4,
-              shadowRadius: 16,
-              backgroundColor: '#0a0a0a',
-              borderWidth: 1,
+              backgroundColor: Colors.card,
+              borderWidth: 0.5,
               borderColor: 'rgba(0, 243, 255, 0.5)',
-              borderRadius: 8,
-              padding: 24,
+              borderRadius: 12,
+              overflow: 'hidden',
               width: '100%',
-              gap: 16,
             },
+            Shadows.neonCyanStrong,
           ]}
         >
-          <GlitchText
-            className="text-center text-xl tracking-widest"
-            animated
-          >
-            QUEST COMPLETE
-          </GlitchText>
-
-          {reward && (
-            <View style={{ alignItems: 'center', gap: 8 }}>
-              <Text style={{ color: '#e0e0e0', fontSize: 14 }}>Reward:</Text>
-              <GlitchText variant="pink" className="text-lg" animated>
-                {reward.description}
-              </GlitchText>
-              <Text style={{ color: '#9ca3af', fontSize: 12, textAlign: 'center' }}>
-                {reward.message}
-              </Text>
-            </View>
-          )}
-
-          <View style={{ alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: '#00f3ff', fontSize: 14, fontWeight: 'bold' }}>
-              +{xpEarned} XP
-            </Text>
-            {streakBonus > 0 && (
-              <Text style={{ color: '#ff00cc', fontSize: 12, fontWeight: 'bold' }}>
-                Streak Bonus: +{streakBonus} XP
-              </Text>
-            )}
-          </View>
-
-          <Pressable
-            onPress={handleClaim}
-            style={{
-              backgroundColor: 'rgba(0, 243, 255, 0.2)',
-              borderWidth: 1,
-              borderColor: '#00f3ff',
-              borderRadius: 8,
-              paddingVertical: 12,
-              alignItems: 'center',
-              shadowColor: '#00f3ff',
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-            }}
-          >
-            <GlitchText className="text-base tracking-widest">
-              CLAIM
+          <BlurView intensity={30} tint="dark" style={{ padding: 28, gap: 18 }}>
+            <GlitchText size={20} animated center>
+              QUEST COMPLETE
             </GlitchText>
-          </Pressable>
+
+            {reward && (
+              <View style={{ alignItems: 'center', gap: 8 }}>
+                <Text style={{
+                  color: Colors.textPrimary,
+                  fontSize: 14,
+                  fontFamily: FontFamilies.medium,
+                  letterSpacing: 1,
+                }}>
+                  Reward:
+                </Text>
+                <GlitchText variant="pink" size={18} animated>
+                  {reward.description}
+                </GlitchText>
+                <Text style={{
+                  color: Colors.textSecondary,
+                  fontSize: 12,
+                  textAlign: 'center',
+                  fontFamily: FontFamilies.light,
+                  letterSpacing: 0.5,
+                }}>
+                  {reward.message}
+                </Text>
+              </View>
+            )}
+
+            <View style={{ alignItems: 'center', gap: 6 }}>
+              <Text style={{
+                color: Colors.neonCyan,
+                fontSize: 16,
+                fontWeight: 'bold',
+                fontFamily: FontFamilies.bold,
+                textShadowColor: Colors.neonCyan,
+                textShadowOffset: { width: 0, height: 0 },
+                textShadowRadius: 8,
+                letterSpacing: 2,
+              }}>
+                +{xpEarned} XP
+              </Text>
+              {streakBonus > 0 && (
+                <Text style={{
+                  color: Colors.neonPink,
+                  fontSize: 13,
+                  fontWeight: 'bold',
+                  fontFamily: FontFamilies.semiBold,
+                  textShadowColor: Colors.neonPink,
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: 6,
+                  letterSpacing: 1,
+                }}>
+                  Streak Bonus: +{streakBonus} XP
+                </Text>
+              )}
+            </View>
+
+            <Pressable
+              onPress={handleClaim}
+              style={{ borderRadius: 10, overflow: 'hidden' }}
+            >
+              <LinearGradient
+                colors={['rgba(0, 243, 255, 0.25)', 'rgba(0, 243, 255, 0.1)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  borderWidth: 0.5,
+                  borderColor: Colors.neonCyan,
+                  borderRadius: 10,
+                }}
+              >
+                <GlitchText size={15}>
+                  CLAIM
+                </GlitchText>
+              </LinearGradient>
+            </Pressable>
+          </BlurView>
         </Animated.View>
       </View>
     </Modal>

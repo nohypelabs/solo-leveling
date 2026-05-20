@@ -6,31 +6,36 @@ import Animated, {
   withTiming,
   withSequence,
   withRepeat,
-  Easing,
   runOnJS,
 } from 'react-native-reanimated';
+import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 
 interface GlitchTextProps {
   children: React.ReactNode;
   variant?: 'cyan' | 'pink';
+  size?: number;
+  weight?: keyof typeof FontFamilies;
   className?: string;
   animated?: boolean;
   triggerGlitch?: boolean;
+  center?: boolean;
 }
 
 export function GlitchText({
   children,
   variant = 'cyan',
+  size = 14,
+  weight = 'bold',
   className = '',
   animated = false,
   triggerGlitch = false,
+  center = false,
 }: GlitchTextProps) {
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
   const skewX = useSharedValue(0);
   const [intenseGlitch, setIntenseGlitch] = React.useState(false);
 
-  // Subtle continuous glitch animation
   useEffect(() => {
     if (!animated) return;
 
@@ -56,7 +61,6 @@ export function GlitchText({
     return () => clearInterval(interval);
   }, [animated]);
 
-  // Intense trigger glitch
   useEffect(() => {
     if (!triggerGlitch) return;
 
@@ -94,18 +98,23 @@ export function GlitchText({
     opacity: opacity.value,
   }));
 
-  const colorClass = variant === 'cyan' ? 'text-sl-cyan' : 'text-sl-pink';
-  const glowColor = variant === 'cyan' ? '#00f3ff' : '#ff00cc';
+  const color = variant === 'cyan' ? Colors.neonCyan : Colors.neonPink;
+  const glowColor = variant === 'cyan' ? Colors.neonCyan : Colors.neonPink;
 
   return (
     <Animated.Text
-      className={`font-bold ${colorClass} ${className}`}
+      className={`font-bold ${variant === 'cyan' ? 'text-sl-cyan' : 'text-sl-pink'} ${className}`}
       style={[
         animatedStyle,
         {
+          fontFamily: FontFamilies[weight],
+          fontSize: size,
+          color,
           textShadowColor: glowColor,
           textShadowOffset: { width: 0, height: 0 },
-          textShadowRadius: intenseGlitch ? 12 : 4,
+          textShadowRadius: intenseGlitch ? 16 : 6,
+          letterSpacing: 2,
+          textAlign: center ? 'center' : 'auto',
         },
       ]}
     >
