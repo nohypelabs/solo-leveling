@@ -56,13 +56,7 @@ export default {
     plugins: [
       "expo-router",
       "expo-font",
-      [
-        "react-native-esanusi-sensor-pose",
-        {
-          cameraPermission:
-            "Solo Leveling needs camera access for AI pose detection during training.",
-        },
-      ],
+      "./plugins/withMLKitPose",
       [
         "expo-camera",
         {
