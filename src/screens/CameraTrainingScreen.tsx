@@ -1,17 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { Camera, useCameraDevices, useCameraPermission } from 'react-native-vision-camera';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import {
-  initPoseDetection,
-  ExerciseType,
-  PoseState,
-  getAnalyzer,
-  resetPoseState,
-  type PoseLandmarkerResult,
-} from '@/services/PoseDetectionService';
+import { usePoseDetection, type ExerciseType } from '@/hooks/usePoseDetection';
 import { useMissionStore, MISSION_TARGETS } from '@/stores/useMissionStore';
 import { GlitchText } from '@/components/GlitchText';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
@@ -23,77 +15,37 @@ const EXERCISES: { key: ExerciseType; label: string; icon: string; target: numbe
 ];
 
 export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [modelReady, setModelReady] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const devices = useCameraDevices();
+  const device = devices.find((d) => d.position === 'front');
+
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pushup');
   const [isTraining, setIsTraining] = useState(false);
-  const [poseState, setPoseState] = useState<PoseState>(resetPoseState());
   const [completed, setCompleted] = useState(false);
 
-  const cameraRef = useRef<CameraView>(null);
-  const frameCount = useRef(0);
-  const analyzerRef = useRef(getAnalyzer('pushup'));
-  const poseStateRef = useRef<PoseState>(resetPoseState());
   const mission = useMissionStore();
 
-  // Load pose model
-  useEffect(() => {
-    initPoseDetection()
-      .then((ok) => {
-        setModelReady(ok);
-        if (!ok) setModelError('Failed to load pose detection model');
-      })
-      .catch((err) => {
-        setModelError(String(err));
-      });
-  }, []);
-
-  // Update analyzer when exercise changes
-  useEffect(() => {
-    analyzerRef.current = getAnalyzer(selectedExercise);
-    poseStateRef.current = resetPoseState();
-    setPoseState(resetPoseState());
-    setCompleted(false);
+  const handleRepComplete = useCallback(() => {
+    const exercise = EXERCISES.find((e) => e.key === selectedExercise)!;
+    // Use a ref-like approach via the store to check current count
+    // The hook increments uiRepCount, we check against it after state update
   }, [selectedExercise]);
 
-  // Simulate frame processing loop
-  // In dev build, this would use CameraView's onFrameProcessor
-  // For now we use a polling approach with the camera preview
+  const { frameProcessor, repCount, formWarning, reset } = usePoseDetection(
+    selectedExercise,
+    handleRepComplete,
+  );
+
+  // Track completion when repCount changes
   useEffect(() => {
-    if (!isTraining || !modelReady || completed) return;
-
-    const interval = setInterval(() => {
-      frameCount.current++;
-      // In production, this processes actual camera frames
-      // Here we simulate the detection feedback loop
-      // The real implementation hooks into Camera frame processor
-    }, 33); // ~30fps
-
-    return () => clearInterval(interval);
-  }, [isTraining, modelReady, completed]);
-
-  function handleSimulateRep() {
     if (completed) return;
-    hapticTap();
-
-    poseStateRef.current = {
-      ...poseStateRef.current,
-      repCount: poseStateRef.current.repCount + 1,
-      phase: 'up',
-      confidence: 0.9,
-      formWarning: null,
-    };
-    setPoseState({ ...poseStateRef.current });
-
     const exercise = EXERCISES.find((e) => e.key === selectedExercise)!;
-    if (poseStateRef.current.repCount >= exercise.target && !completed) {
+    if (repCount >= exercise.target) {
       setCompleted(true);
       hapticQuestComplete();
 
       // Save to mission store
       if (selectedExercise === 'pushup') {
-        mission.setPlankSecondsDone(mission.plankSecondsDone); // keep plank
         for (let i = 0; i < exercise.target; i++) {
           useMissionStore.getState().incrementPushUp();
         }
@@ -103,14 +55,13 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
         }
       }
     }
-  }
+  }, [repCount, selectedExercise, completed]);
 
   function handleStartTraining() {
     hapticTap();
-    setIsTraining(true);
-    poseStateRef.current = resetPoseState();
-    setPoseState(resetPoseState());
+    reset();
     setCompleted(false);
+    setIsTraining(true);
   }
 
   function handleStopTraining() {
@@ -118,14 +69,20 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
   }
 
   function handleReset() {
-    poseStateRef.current = resetPoseState();
-    setPoseState(resetPoseState());
+    reset();
     setCompleted(false);
     setIsTraining(false);
   }
 
+  function handleSelectExercise(key: ExerciseType) {
+    hapticTap();
+    reset();
+    setCompleted(false);
+    setSelectedExercise(key);
+  }
+
   // Permission not granted
-  if (!permission?.granted) {
+  if (!hasPermission) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
         <View style={[{
@@ -169,42 +126,31 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
     );
   }
 
-  // Model loading
-  if (!modelReady && !modelError) {
+  // Camera device loading
+  if (!device) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
         <ActivityIndicator color={Colors.neonCyan} size="large" />
-        <GlitchText size={14} center>LOADING AI MODEL...</GlitchText>
-        <Text style={{ color: Colors.textMuted, fontSize: 11, fontFamily: FontFamilies.light, letterSpacing: 1 }}>
-          Downloading pose detection model
-        </Text>
+        <GlitchText size={14} center>LOADING CAMERA...</GlitchText>
       </View>
     );
   }
 
   const currentExercise = EXERCISES.find((e) => e.key === selectedExercise)!;
-  const progress = Math.min(poseState.repCount / currentExercise.target, 1);
+  const progress = Math.min(repCount / currentExercise.target, 1);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       {/* Camera Preview */}
       <View style={{ flex: 1, position: 'relative' }}>
-        {Platform.OS !== 'web' ? (
-          <CameraView
-            ref={cameraRef}
-            style={{ flex: 1 }}
-            facing="front"
-            active={isTraining}
-          />
-        ) : (
-          <View style={{ flex: 1, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: Colors.textMuted, fontSize: 12, fontFamily: FontFamilies.medium }}>
-              Camera preview (requires device)
-            </Text>
-          </View>
-        )}
+        <Camera
+          style={{ flex: 1 }}
+          device={device}
+          isActive={isTraining}
+          frameProcessor={isTraining ? frameProcessor : undefined}
+        />
 
-        {/* Skeleton overlay hint */}
+        {/* Status indicator */}
         {isTraining && !completed && (
           <View style={{
             position: 'absolute',
@@ -227,14 +173,14 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                 fontFamily: FontFamilies.semiBold,
                 letterSpacing: 2,
               }}>
-                🤖 AI TRACKING ACTIVE
+                AI TRACKING ACTIVE
               </Text>
             </View>
           </View>
         )}
 
         {/* Form warning */}
-        {poseState.formWarning && isTraining && (
+        {formWarning && isTraining && (
           <View style={{
             position: 'absolute',
             bottom: 200,
@@ -255,7 +201,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                 fontFamily: FontFamilies.semiBold,
                 letterSpacing: 1,
               }}>
-                ⚠️ {poseState.formWarning}
+                {formWarning}
               </Text>
             </View>
           </View>
@@ -275,10 +221,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                 {EXERCISES.map((ex) => (
                   <Pressable
                     key={ex.key}
-                    onPress={() => {
-                      hapticTap();
-                      setSelectedExercise(ex.key);
-                    }}
+                    onPress={() => handleSelectExercise(ex.key)}
                     style={{
                       flex: 1,
                       paddingVertical: 10,
@@ -315,7 +258,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                     fontFamily: FontFamilies.semiBold,
                     letterSpacing: 1,
                   }}>
-                    {poseState.repCount}/{currentExercise.target} {completed ? '✓' : ''}
+                    {repCount}/{currentExercise.target} {completed ? '✓' : ''}
                   </Text>
                 </View>
                 <View style={{ height: 8, borderRadius: 9999, backgroundColor: Colors.barTrack, overflow: 'hidden' }}>
@@ -391,28 +334,6 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                   >
                     <Text style={{ color: '#f87171', fontSize: 13, fontFamily: FontFamilies.bold, letterSpacing: 2 }}>STOP</Text>
                   </Pressable>
-                  {/* Manual rep button for testing / when AI misses */}
-                  <Pressable
-                    onPress={handleSimulateRep}
-                    style={{ flex: 2, borderRadius: 10, overflow: 'hidden' }}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255, 0, 204, 0.3)', 'rgba(255, 0, 204, 0.15)']}
-                      style={{ paddingVertical: 12, alignItems: 'center', borderWidth: 0.5, borderColor: Colors.neonPink, borderRadius: 10 }}
-                    >
-                      <Text style={{
-                        color: Colors.neonPink,
-                        fontSize: 16,
-                        fontFamily: FontFamilies.bold,
-                        letterSpacing: 2,
-                        textShadowColor: Colors.neonPink,
-                        textShadowOffset: { width: 0, height: 0 },
-                        textShadowRadius: 6,
-                      }}>
-                        +1 REP
-                      </Text>
-                    </LinearGradient>
-                  </Pressable>
                 </>
               )}
 
@@ -446,20 +367,13 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                         fontFamily: FontFamilies.bold,
                         letterSpacing: 3,
                       }}>
-                        DONE ✓
+                        DONE
                       </Text>
                     </LinearGradient>
                   </Pressable>
                 </>
               )}
             </View>
-
-            {/* AI status */}
-            {modelError && (
-              <Text style={{ color: Colors.neonPink, fontSize: 10, textAlign: 'center', fontFamily: FontFamilies.light }}>
-                AI Model Error: {modelError}. Use manual +1 REP.
-              </Text>
-            )}
           </BlurView>
         </View>
       </View>

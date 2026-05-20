@@ -1,101 +1,125 @@
-// src/hooks/usePoseDetection.ts
-import { useState, useCallback } from 'react';
-import { useFrameProcessor } from 'react-native-vision-camera';
-import { runPoseDetection, type PoseLandmarkerResult } from 'react-native-esanusi-sensor-pose';
-import { useSharedValue, runOnJS } from 'react-native-worklets-core';
+import { useState, useCallback, useRef } from 'react';
+import { useFrameProcessor, type Frame, runAtTargetFps } from 'react-native-vision-camera';
+import { usePoseDetector, getAngle, type Pose } from 'react-native-esanusi-sensor-pose';
+import { runOnJS } from 'react-native-reanimated';
 
 export type ExerciseType = 'pushup' | 'situp';
 
-interface Point {
-  x: number;
-  y: number;
-  z?: number;
+function isPoseComplete(pose: Pose, exercise: ExerciseType): boolean {
+  if (exercise === 'pushup') {
+    const ls = pose.leftShoulder;
+    const le = pose.leftElbow;
+    const lw = pose.leftWrist;
+    if (!ls || !le || !lw) return false;
+    const angle = getAngle(ls, le, lw);
+    return angle < 90;
+  } else {
+    const ls = pose.leftShoulder;
+    const lh = pose.leftHip;
+    const lk = pose.leftKnee;
+    if (!ls || !lh || !lk) return false;
+    const angle = getAngle(ls, lh, lk);
+    return angle < 90;
+  }
 }
 
-function calculateAngle(a: Point, b: Point, c: Point): number {
-  const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-  let angle = Math.abs(radians * 180 / Math.PI);
-  if (angle > 180) angle = 360 - angle;
-  return angle;
+function isPoseReset(pose: Pose, exercise: ExerciseType): boolean {
+  if (exercise === 'pushup') {
+    const ls = pose.leftShoulder;
+    const le = pose.leftElbow;
+    const lw = pose.leftWrist;
+    if (!ls || !le || !lw) return false;
+    const angle = getAngle(ls, le, lw);
+    return angle > 150;
+  } else {
+    const ls = pose.leftShoulder;
+    const lh = pose.leftHip;
+    const lk = pose.leftKnee;
+    if (!ls || !lh || !lk) return false;
+    const angle = getAngle(ls, lh, lk);
+    return angle > 150;
+  }
+}
+
+function getFormWarning(pose: Pose, exercise: ExerciseType): string | null {
+  if (exercise === 'pushup') {
+    const ls = pose.leftShoulder;
+    const lh = pose.leftHip;
+    const lk = pose.leftKnee;
+    if (!ls || !lh || !lk) return null;
+    const bodyAngle = getAngle(ls, lh, lk);
+    if (bodyAngle < 150) return 'Keep your back straight';
+    return null;
+  } else {
+    const lk = pose.leftKnee;
+    const lh = pose.leftHip;
+    const la = pose.leftAnkle;
+    if (!lk || !lh || !la) return null;
+    const kneeAngle = getAngle(la, lk, lh);
+    if (kneeAngle > 120) return 'Bend your knees more';
+    return null;
+  }
 }
 
 export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => void) {
-  const repCount = useSharedValue(0);
-  const phase = useSharedValue<'up' | 'down'>('up');
   const [uiRepCount, setUiRepCount] = useState(0);
   const [formWarning, setFormWarning] = useState<string | null>(null);
 
-  const frameProcessor = useFrameProcessor((frame) => {
+  const phaseRef = useRef<'up' | 'down'>('up');
+  const repCountRef = useRef(0);
+  const onRepRef = useRef(onRepComplete);
+  onRepRef.current = onRepComplete;
+
+  const { detectPose } = usePoseDetector({
+    performanceMode: 'fast',
+    detectorMode: 'stream',
+    minLandmarkConfidence: 0.5,
+  });
+
+  const frameProcessor = useFrameProcessor((frame: Frame) => {
     'worklet';
-    try {
-      const results = runPoseDetection(frame, {
-        performanceMode: 'fast',
-        detectorMode: 'stream',
-      }) as PoseLandmarkerResult;
 
-      if (results.poses && results.poses.length > 0) {
-        const pose = results.poses[0];
-
-        if (exercise === 'pushup') {
-          const leftShoulder = pose.landmarks[11];
-          const leftElbow = pose.landmarks[13];
-          const leftWrist = pose.landmarks[15];
-
-          if (leftShoulder && leftElbow && leftWrist) {
-            const angle = calculateAngle(leftShoulder, leftElbow, leftWrist);
-
-            if (phase.value === 'up' && angle < 90) {
-              phase.value = 'down';
-            } else if (phase.value === 'down' && angle > 150) {
-              phase.value = 'up';
-              repCount.value += 1;
-              runOnJS(setUiRepCount)(repCount.value);
-              runOnJS(onRepComplete)();
-            }
-
-            if (angle < 70) {
-              runOnJS(setFormWarning)('Too low, keep back straight');
-            } else if (angle > 160 && phase.value === 'down') {
-              runOnJS(setFormWarning)('Not low enough');
-            } else {
-              runOnJS(setFormWarning)(null);
-            }
-          }
-        } else if (exercise === 'situp') {
-          const leftShoulder = pose.landmarks[11];
-          const leftHip = pose.landmarks[23];
-          const leftKnee = pose.landmarks[25];
-
-          if (leftShoulder && leftHip && leftKnee) {
-            const angle = calculateAngle(leftShoulder, leftHip, leftKnee);
-
-            if (phase.value === 'up' && angle < 90) {
-              phase.value = 'down';
-            } else if (phase.value === 'down' && angle > 150) {
-              phase.value = 'up';
-              repCount.value += 1;
-              runOnJS(setUiRepCount)(repCount.value);
-              runOnJS(onRepComplete)();
-            }
-
-            if (angle < 70) {
-              runOnJS(setFormWarning)('Sit up too far');
-            } else {
-              runOnJS(setFormWarning)(null);
-            }
-          }
+    runAtTargetFps(15, () => {
+      'worklet';
+      try {
+        const poses = detectPose(frame);
+        if (!poses || poses.length === 0) {
+          runOnJS(setFormWarning)('No person detected — adjust camera');
+          return;
         }
-      } else {
-        runOnJS(setFormWarning)('No person detected, adjust camera');
+
+        const pose = poses[0];
+
+        if (isPoseComplete(pose, exercise)) {
+          if (phaseRef.current === 'up') {
+            phaseRef.current = 'down';
+            repCountRef.current += 1;
+            runOnJS(setUiRepCount)(repCountRef.current);
+            runOnJS(onRepRef.current)();
+          }
+        } else if (isPoseReset(pose, exercise)) {
+          phaseRef.current = 'up';
+        }
+
+        const warning = getFormWarning(pose, exercise);
+        runOnJS(setFormWarning)(warning);
+      } catch (e) {
+        // Silent fail on frame processing errors
       }
-    } catch (e) {
-      // Silent fail
-    }
-  }, [exercise]);
+    });
+  }, [exercise, detectPose]);
+
+  const reset = useCallback(() => {
+    phaseRef.current = 'up';
+    repCountRef.current = 0;
+    setUiRepCount(0);
+    setFormWarning(null);
+  }, []);
 
   return {
     frameProcessor,
     repCount: uiRepCount,
     formWarning,
+    reset,
   };
 }
