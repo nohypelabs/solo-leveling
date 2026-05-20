@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Camera, useCameraDevices, useCameraPermission } from 'react-native-vision-camera';
+import { PoseOverlay } from 'react-native-esanusi-sensor-pose';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePoseDetection, type ExerciseType } from '@/hooks/usePoseDetection';
@@ -18,6 +19,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const devices = useCameraDevices();
   const device = devices.find((d) => d.position === 'front');
+  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
 
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pushup');
   const [isTraining, setIsTraining] = useState(false);
@@ -25,13 +27,9 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
 
   const mission = useMissionStore();
 
-  const handleRepComplete = useCallback(() => {
-    const exercise = EXERCISES.find((e) => e.key === selectedExercise)!;
-    // Use a ref-like approach via the store to check current count
-    // The hook increments uiRepCount, we check against it after state update
-  }, [selectedExercise]);
+  const handleRepComplete = useCallback(() => {}, [selectedExercise]);
 
-  const { frameProcessor, repCount, formWarning, reset } = usePoseDetection(
+  const { frameProcessor, repCount, formWarning, reset, debug, currentPoses, frameSize } = usePoseDetection(
     selectedExercise,
     handleRepComplete,
   );
@@ -44,7 +42,6 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
       setCompleted(true);
       hapticQuestComplete();
 
-      // Save to mission store
       if (selectedExercise === 'pushup') {
         for (let i = 0; i < exercise.target; i++) {
           useMissionStore.getState().incrementPushUp();
@@ -81,7 +78,6 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
     setSelectedExercise(key);
   }
 
-  // Permission not granted
   if (!hasPermission) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
@@ -102,7 +98,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
               textAlign: 'center',
               lineHeight: 20,
             }}>
-              Camera access is required for AI-powered exercise tracking. The system will detect your form and count reps automatically.
+              Camera access is required for AI-powered exercise tracking.
             </Text>
             <Pressable
               onPress={requestPermission}
@@ -126,7 +122,6 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
     );
   }
 
-  // Camera device loading
   if (!device) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
@@ -141,14 +136,51 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* Camera Preview */}
       <View style={{ flex: 1, position: 'relative' }}>
         <Camera
           style={{ flex: 1 }}
           device={device}
-          isActive={isTraining}
+          isActive={true}
           frameProcessor={isTraining ? frameProcessor : undefined}
         />
+
+        {/* Skeleton overlay */}
+        {isTraining && currentPoses.length > 0 && frameSize.width > 0 && (
+          <PoseOverlay
+            poses={currentPoses}
+            frameWidth={frameSize.width}
+            frameHeight={frameSize.height}
+            viewWidth={viewWidth}
+            viewHeight={viewHeight}
+            dotColor={Colors.neonCyan}
+            boneColor={Colors.neonCyan}
+            dotSize={8}
+            boneWidth={3}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        )}
+
+        {/* Debug overlay */}
+        {isTraining && (
+          <View style={{
+            position: 'absolute',
+            top: 60,
+            left: 10,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 10,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: Colors.neonPink,
+          }}>
+            <Text style={{ color: '#ff0', fontSize: 10, fontFamily: FontFamilies.medium }}>
+              Frames: {debug.frameCount}{'\n'}
+              Detects: {debug.detectCount}{'\n'}
+              Poses: {debug.poseCount}{'\n'}
+              Angle: {debug.lastAngle !== null ? debug.lastAngle.toFixed(1) : '—'}{'\n'}
+              Phase: {debug.phase}
+            </Text>
+          </View>
+        )}
 
         {/* Status indicator */}
         {isTraining && !completed && (
