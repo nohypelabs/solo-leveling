@@ -86,7 +86,18 @@ A unified `storage` object that tries MMKV first (native, fast) and falls back t
 
 ### Pose Detection (Camera-based rep counting)
 
-`src/hooks/usePoseDetection.ts` uses react-native-vision-camera frame processor + ML Kit pose detection to count push-up and sit-up reps by tracking joint angles. The custom config plugin `plugins/withMLKitPose.js` injects ML Kit dependencies into the Android build.gradle.
+`src/hooks/usePoseDetection.ts` runs the detector on an async worklet context (worklets-core
+`createRunAsync` + `createRunOnJS`, busy-guard + frame refcount, ~10Hz payloads) so the preview
+never blocks — do NOT call `detectPose` synchronously inside `useFrameProcessor` and do NOT use
+reanimated's `runOnJS` there. Rep state machine (smoothed elbow/torso angle, hysteresis
+<100 down / >150 up, count on return-to-top, 700ms debounce) lives in `handlePayload` on the JS
+side. A displacement tracker runs as a fused second signal: shoulder-Y baseline =
+position 0 (body up), excursion beyond 0.045 arms it, return within 0.018 of baseline = 1 rep
+(min 350ms excursion, 1s debounce, shared rep clock with the angle path so one rep = 1 count).
+It runs every frame for any exercise/camera, so reps still count when elbows are occluded
+(e.g. front-camera push-up). Debug overlay shows both Angle/Phase and Bob state.
+Preview mode: the frame processor stays attached and the skeleton follows the full body
+before training starts — rep counting is gated by the `counting` flag (`isTraining`).
 
 ### Native Module
 

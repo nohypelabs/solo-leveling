@@ -27,6 +27,8 @@ interface MissionState {
   incrementPushUp: () => void;
   incrementPullUp: () => void;
   incrementSitUp: () => void;
+  addPushUps: (count: number) => void;
+  addSitUps: (count: number) => void;
   setPlankSecondsDone: (seconds: number) => void;
   checkAndCompleteMission: () => boolean;
   resetDailyIfNeeded: () => void;
@@ -93,6 +95,26 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     if (s.isMissionComplete) return;
     if (useCooldownStore.getState().isGroupOnCooldown('core')) return;
     const newVal = Math.min(s.sitUpDone + 1, MISSION_TARGETS.sitUp);
+    storage.set('mission_sitUpDone', newVal);
+    set({ sitUpDone: newVal });
+    get().checkAndCompleteMission();
+  },
+
+  addPushUps: (count: number) => {
+    const s = get();
+    if (s.isMissionComplete) return;
+    if (useCooldownStore.getState().isGroupOnCooldown('chest')) return;
+    const newVal = Math.min(s.pushUpDone + count, MISSION_TARGETS.pushUp);
+    storage.set('mission_pushUpDone', newVal);
+    set({ pushUpDone: newVal });
+    get().checkAndCompleteMission();
+  },
+
+  addSitUps: (count: number) => {
+    const s = get();
+    if (s.isMissionComplete) return;
+    if (useCooldownStore.getState().isGroupOnCooldown('core')) return;
+    const newVal = Math.min(s.sitUpDone + count, MISSION_TARGETS.sitUp);
     storage.set('mission_sitUpDone', newVal);
     set({ sitUpDone: newVal });
     get().checkAndCompleteMission();

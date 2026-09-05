@@ -6,9 +6,10 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePoseDetection, type ExerciseType } from '@/hooks/usePoseDetection';
 import { useMissionStore, MISSION_TARGETS } from '@/stores/useMissionStore';
+import { useCooldownStore } from '@/stores/useCooldownStore';
 import { GlitchText } from '@/components/GlitchText';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
-import { hapticTap, hapticQuestComplete } from '@/services/HapticFeedbackService';
+import { hapticTap, hapticQuestComplete, hapticTick, hapticWarning } from '@/services/HapticFeedbackService';
 
 const EXERCISES: { key: ExerciseType; label: string; icon: string; target: number; unit: string }[] = [
   { key: 'pushup', label: 'PUSH-UP', icon: '💪', target: MISSION_TARGETS.pushUp, unit: 'reps' },
@@ -17,21 +18,25 @@ const EXERCISES: { key: ExerciseType; label: string; icon: string; target: numbe
 
 export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
   const { hasPermission, requestPermission } = useCameraPermission();
-  const devices = useCameraDevices();
-  const device = devices.find((d) => d.position === 'front');
-  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
-
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('pushup');
   const [isTraining, setIsTraining] = useState(false);
   const [completed, setCompleted] = useState(false);
+  // Push-up needs a side view of the arms — default to back camera.
+  // Sit-up works fine with the front camera.
+  const [cameraPosition, setCameraPosition] = useState<'front' | 'back'>('back');
+  const devices = useCameraDevices();
+  const device = devices.find((d: any) => d.position === cameraPosition) ?? devices.find((d: any) => d.position === 'front') ?? devices[0];
+  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
 
-  const mission = useMissionStore();
-
-  const handleRepComplete = useCallback(() => {}, [selectedExercise]);
+  const handleRepComplete = useCallback(() => {
+    hapticTick();
+  }, []);
 
   const { frameProcessor, repCount, formWarning, reset, debug, currentPoses, frameSize } = usePoseDetection(
     selectedExercise,
     handleRepComplete,
+    cameraPosition === 'front',
+    isTraining,
   );
 
   // Track completion when repCount changes
@@ -43,18 +48,25 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
       hapticQuestComplete();
 
       if (selectedExercise === 'pushup') {
-        for (let i = 0; i < exercise.target; i++) {
-          useMissionStore.getState().incrementPushUp();
-        }
+        useMissionStore.getState().addPushUps(exercise.target);
       } else if (selectedExercise === 'situp') {
-        for (let i = 0; i < exercise.target; i++) {
-          useMissionStore.getState().incrementSitUp();
-        }
+        useMissionStore.getState().addSitUps(exercise.target);
       }
     }
   }, [repCount, selectedExercise, completed]);
 
+  const isExerciseOnCooldown =
+    selectedExercise === 'pushup'
+      ? useCooldownStore.getState().isGroupOnCooldown('chest')
+      : useCooldownStore.getState().isGroupOnCooldown('core');
+
   function handleStartTraining() {
+    // Bulk completion (addPushUps/addSitUps) silently no-ops on cooldown —
+    // block START instead of letting camera reps vanish.
+    if (isExerciseOnCooldown) {
+      hapticWarning();
+      return;
+    }
     hapticTap();
     reset();
     setCompleted(false);
@@ -76,6 +88,13 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
     reset();
     setCompleted(false);
     setSelectedExercise(key);
+    // auto-pick the camera that actually sees the movement
+    setCameraPosition(key === 'pushup' ? 'back' : 'front');
+  }
+
+  function handleToggleCamera() {
+    hapticTap();
+    setCameraPosition((prev: 'front' | 'back') => (prev === 'front' ? 'back' : 'front'));
   }
 
   if (!hasPermission) {
@@ -141,12 +160,14 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
           style={{ flex: 1 }}
           device={device}
           isActive={true}
-          frameProcessor={isTraining ? frameProcessor : undefined}
+          // Always attached: skeleton follows the full body in preview too,
+          // rep counting itself is gated by isTraining inside the hook.
+          frameProcessor={frameProcessor}
           pixelFormat="yuv"
         />
 
-        {/* Skeleton overlay */}
-        {isTraining && currentPoses.length > 0 && frameSize.width > 0 && (
+        {/* Skeleton overlay — live in preview AND training */}
+        {currentPoses.length > 0 && frameSize.width > 0 && (
           <PoseOverlay
             poses={currentPoses}
             frameWidth={frameSize.width}
@@ -178,13 +199,59 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
               Detects: {debug.detectCount}{'\n'}
               Poses: {debug.poseCount}{'\n'}
               Angle: {debug.lastAngle !== null ? debug.lastAngle.toFixed(1) : '—'}{'\n'}
-              Phase: {debug.phase}
+              Phase: {debug.phase}{'\n'}
+              Bob: {debug.bob ?? '—'}
             </Text>
           </View>
         )}
 
-        {/* Status indicator */}
-        {isTraining && !completed && (
+        {/* Camera toggle */}
+        <Pressable
+          onPress={handleToggleCamera}
+          style={{
+            position: 'absolute',
+            top: 60,
+            right: 10,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 20,
+            borderWidth: 0.5,
+            borderColor: Colors.neonCyan,
+          }}
+        >
+          <Text style={{
+            color: Colors.neonCyan,
+            fontSize: 11,
+            fontFamily: FontFamilies.semiBold,
+            letterSpacing: 1,
+          }}>
+            {cameraPosition === 'front' ? '📷 FRONT' : '📷 BACK'}
+          </Text>
+        </Pressable>
+
+        {/* Positioning hint */}
+        {!isTraining && selectedExercise === 'pushup' && (
+          <View style={{
+            position: 'absolute',
+            top: 110,
+            left: 16,
+            right: 16,
+            alignItems: 'center',
+          }}>
+            <Text style={{
+              color: Colors.textSecondary,
+              fontSize: 11,
+              fontFamily: FontFamilies.medium,
+              textAlign: 'center',
+              lineHeight: 16,
+            }}>
+              Taruh HP di samping badan biar siku kelihatan kamera samping
+            </Text>
+          </View>
+        )}
+        {/* Status indicator — preview shows positioning prompt, training shows active */}
+        {!completed && (
           <View style={{
             position: 'absolute',
             top: 20,
@@ -206,7 +273,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                 fontFamily: FontFamilies.semiBold,
                 letterSpacing: 2,
               }}>
-                AI TRACKING ACTIVE
+                {isTraining ? 'AI TRACKING ACTIVE' : 'POSITION YOUR BODY'}
               </Text>
             </View>
           </View>
@@ -332,7 +399,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
                   </Pressable>
                   <Pressable
                     onPress={handleStartTraining}
-                    style={{ flex: 2, borderRadius: 10, overflow: 'hidden' }}
+                    style={{ flex: 2, borderRadius: 10, overflow: 'hidden', opacity: isExerciseOnCooldown ? 0.4 : 1 }}
                   >
                     <LinearGradient
                       colors={['rgba(0, 243, 255, 0.25)', 'rgba(0, 243, 255, 0.1)']}
