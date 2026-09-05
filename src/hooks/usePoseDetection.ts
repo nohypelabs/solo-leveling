@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { useFrameProcessor, type Frame } from 'react-native-vision-camera';
+import { useFrameProcessor, type Frame, type FrameInternal } from 'react-native-vision-camera';
 import { Worklets, useSharedValue } from 'react-native-worklets-core';
 import { usePoseDetector, getAngle, type Pose } from 'react-native-esanusi-sensor-pose';
 
@@ -391,7 +391,9 @@ export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => vo
             frameCount: 0,
           });
         } finally {
-          frame.decrementRefCount();
+          // Same private API the esanusi Camera itself uses: keep the frame
+          // alive across the async boundary, release when done.
+          (frame as FrameInternal).decrementRefCount();
           busy.value = false;
         }
       }),
@@ -406,7 +408,7 @@ export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => vo
       tick.value += 1;
       if (tick.value % EVERY_NTH_FRAME !== 0) return;
       busy.value = true;
-      frame.incrementRefCount();
+      (frame as FrameInternal).incrementRefCount();
       runAsync(frame);
     },
     [runAsync],

@@ -18,6 +18,7 @@ import { XPBar } from './XPBar';
 import { GlitchText } from './GlitchText';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 import { hapticLevelUp } from '@/services/HapticFeedbackService';
+import { playLevelUp } from '@/services/SoundService';
 
 const STATS = [
   { key: 'strength' as const, label: 'STR', icon: '⚔️' },
@@ -57,6 +58,7 @@ export function StatusWindow() {
       const timeout = setTimeout(() => setTriggerGlitch(false), 1000);
 
       hapticLevelUp();
+      playLevelUp();
 
       return () => clearTimeout(timeout);
     }

@@ -10,6 +10,7 @@ import { useMissionStore } from '@/stores/useMissionStore';
 import { useCooldownStore } from '@/stores/useCooldownStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { initNotifications, scheduleDailyMissionReminder } from '@/services/NotificationService';
+import { preloadSounds } from '@/services/SoundService';
 import { Colors } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -35,6 +36,8 @@ export default function RootLayout() {
           scheduleDailyMissionReminder();
         }
       });
+      // Game jingles (Phase 3) — fire-and-forget, play*() no-ops until ready.
+      preloadSounds();
       setStoreReady(true);
     });
   }, []);

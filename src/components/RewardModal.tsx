@@ -11,6 +11,7 @@ import { GlitchText } from './GlitchText';
 import { Confetti } from './Confetti';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 import { hapticQuestComplete } from '@/services/HapticFeedbackService';
+import { playQuestComplete } from '@/services/SoundService';
 import type { Reward } from '@/utils/rewards';
 
 interface RewardModalProps {
@@ -35,6 +36,7 @@ export function RewardModal({
     if (visible) {
       cardScale.value = withSpring(1, { damping: 10, stiffness: 150 });
       cardOpacity.value = withSpring(1, { damping: 12 });
+      playQuestComplete();
     } else {
       cardScale.value = 0.8;
       cardOpacity.value = 0;
