@@ -32,7 +32,9 @@ export async function preloadSounds(): Promise<void> {
 function replay(player: AudioPlayer | null) {
   if (!player) return;
   try {
-    player.seekTo(0);
+    // seekTo is async — floating promise, swallow rejection explicitly so a
+    // missing/locked asset logs instead of tripping unhandled-rejection.
+    player.seekTo(0).catch((e) => console.warn('Sound seek failed:', e));
     player.play();
   } catch (e) {
     console.warn('Sound play failed:', e);

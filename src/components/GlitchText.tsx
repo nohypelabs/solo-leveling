@@ -5,8 +5,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSequence,
-  withRepeat,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 

@@ -11,7 +11,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { GlitchText } from './GlitchText';
-import { Colors, FontFamilies, Shadows, Borders } from '@/constants/theme';
+import { useGyroscopeHologram } from '@/hooks/useGyroscopeHologram';
+import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 import { hapticTap } from '@/services/HapticFeedbackService';
 
 interface MissionCardProps {
@@ -80,6 +81,9 @@ export function MissionCard({
     opacity: cooldownPulse.value,
   }));
 
+  // Hologram 3D tilt (Phase 3 roadmap) — same gyro treatment as StatusWindow.
+  const { animatedStyle: hologramStyle } = useGyroscopeHologram(!disabled);
+
   function handlePress() {
     if (disabled || isComplete) return;
     buttonScale.value = withSpring(0.9, { damping: 10 }, () => {
@@ -102,8 +106,8 @@ export function MissionCard({
       : Shadows.neonCyan;
 
   return (
-    <View
-      style={[{
+    <Animated.View
+      style={[hologramStyle, {
         backgroundColor: Colors.card,
         borderWidth: 0.5,
         borderColor,
@@ -218,6 +222,6 @@ export function MissionCard({
           </Animated.Text>
         )}
       </BlurView>
-    </View>
+    </Animated.View>
   );
 }

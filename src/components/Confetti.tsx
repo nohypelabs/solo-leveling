@@ -31,7 +31,18 @@ function generateParticles(): Particle[] {
 }
 
 export function Confetti({ visible }: { visible: boolean }) {
-  const particles = React.useRef(generateParticles()).current;
+  // Fresh random pattern every time the modal opens (not the same burst twice).
+  const [burst, setBurst] = React.useState(0);
+  const wasVisible = React.useRef(visible);
+
+  if (visible && !wasVisible.current) {
+    wasVisible.current = true;
+    setBurst((b) => b + 1);
+  } else if (!visible && wasVisible.current) {
+    wasVisible.current = false;
+  }
+
+  const particles = React.useMemo(() => generateParticles(), [burst]);
 
   if (!visible) return null;
 
@@ -64,7 +75,7 @@ function ConfettiParticle({ particle }: { particle: Particle }) {
     const duration = 1500 + Math.random() * 1000;
     const targetX = particle.startX + (Math.random() - 0.5) * 200;
 
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       translateY.value = withTiming(SCREEN_HEIGHT + 20, {
         duration,
         easing: Easing.out(Easing.quad),
@@ -76,6 +87,8 @@ function ConfettiParticle({ particle }: { particle: Particle }) {
         withTiming(0, { duration: duration * 0.4 }),
       );
     }, particle.delay);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
