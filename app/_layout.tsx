@@ -11,6 +11,7 @@ import { useCooldownStore } from '@/stores/useCooldownStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { initNotifications, scheduleDailyMissionReminder } from '@/services/NotificationService';
 import { preloadSounds } from '@/services/SoundService';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -38,6 +39,9 @@ export default function RootLayout() {
       });
       // Game jingles (Phase 3) — fire-and-forget, play*() no-ops until ready.
       preloadSounds();
+      // Bottom-nav glyphs: preload eagerly so tabs never flash empty/tofu on
+      // first paint waiting for the lazy per-icon loadAsync.
+      Ionicons.loadFont().catch((e) => console.warn('Ionicons preload failed:', e));
       setStoreReady(true);
     });
   }, []);

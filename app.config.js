@@ -57,6 +57,7 @@ export default {
       "expo-router",
       "expo-font",
       "./plugins/withMLKitPose",
+      "./plugins/withFontKeepXml",
       [
         "expo-camera",
         {
