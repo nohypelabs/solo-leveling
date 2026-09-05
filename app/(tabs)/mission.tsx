@@ -10,7 +10,17 @@ import { RewardModal } from '@/components/RewardModal';
 import { GlitchText } from '@/components/GlitchText';
 import { Colors, FontFamilies, Shadows } from '@/constants/theme';
 import { hapticTap, hapticQuestComplete } from '@/services/HapticFeedbackService';
-import { CameraTrainingScreen } from '@/screens/CameraTrainingScreen';
+// Lazy-load to avoid crash in Expo Go (native modules not available)
+let CameraTrainingScreen: React.ComponentType<{ onClose: () => void }> | null = null;
+try {
+  const { NativeModules } = require('react-native');
+  // Check if VisionCamera native module exists before loading
+  if (NativeModules.VisionCameraProxy || NativeModules.VisionCameraInstaller) {
+    CameraTrainingScreen = require('@/screens/CameraTrainingScreen').CameraTrainingScreen;
+  }
+} catch {
+  // Not available in Expo Go
+}
 
 export default function MissionScreen() {
   const mission = useMissionStore();
@@ -112,8 +122,11 @@ export default function MissionScreen() {
   const plankDone = mission.plankSecondsDone >= MISSION_TARGETS.plank;
 
   // AI Training overlay
-  if (showAITraining) {
+  if (showAITraining && CameraTrainingScreen) {
     return <CameraTrainingScreen onClose={() => setShowAITraining(false)} />;
+  }
+  if (showAITraining && !CameraTrainingScreen) {
+    setShowAITraining(false);
   }
 
   return (

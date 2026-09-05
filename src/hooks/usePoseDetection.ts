@@ -18,35 +18,92 @@ export interface FrameSize {
   height: number;
 }
 
+function mirrorLandmark(lm: any, frameWidth: number) {
+  'worklet';
+  return { ...lm, x: frameWidth - lm.x };
+}
+
+function mirrorPose(pose: Pose, frameWidth: number): Pose {
+  'worklet';
+  const result: Pose = {};
+  for (const key in pose) {
+    const lm = pose[key as keyof Pose];
+    if (lm) {
+      (result as Record<string, any>)[key] = mirrorLandmark(lm, frameWidth);
+    }
+  }
+  return result;
+}
+
+function getBestArmAngle(pose: Pose): number | null {
+  const ls = pose.leftShoulder;
+  const le = pose.leftElbow;
+  const lw = pose.leftWrist;
+  
+  const rs = pose.rightShoulder;
+  const re = pose.rightElbow;
+  const rw = pose.rightWrist;
+  
+  const leftValid = ls && le && lw;
+  const rightValid = rs && re && rw;
+  
+  if (!leftValid && !rightValid) return null;
+  
+  if (leftValid && rightValid) {
+    const leftConf = Math.min(ls.inFrameLikelihood ?? 0, le.inFrameLikelihood ?? 0, lw.inFrameLikelihood ?? 0);
+    const rightConf = Math.min(rs.inFrameLikelihood ?? 0, re.inFrameLikelihood ?? 0, rw.inFrameLikelihood ?? 0);
+    return leftConf >= rightConf ? getAngle(ls!, le!, lw!) : getAngle(rs!, re!, rw!);
+  }
+  
+  if (leftValid) return getAngle(ls!, le!, lw!);
+  return getAngle(rs!, re!, rw!);
+}
+
+function getBestTorsoAngle(pose: Pose): number | null {
+  const ls = pose.leftShoulder;
+  const lh = pose.leftHip;
+  const lk = pose.leftKnee;
+  
+  const rs = pose.rightShoulder;
+  const rh = pose.rightHip;
+  const rk = pose.rightKnee;
+  
+  const leftValid = ls && lh && lk;
+  const rightValid = rs && rh && rk;
+  
+  if (!leftValid && !rightValid) return null;
+  
+  if (leftValid && rightValid) {
+    const leftConf = Math.min(ls.inFrameLikelihood ?? 0, lh.inFrameLikelihood ?? 0, lk.inFrameLikelihood ?? 0);
+    const rightConf = Math.min(rs.inFrameLikelihood ?? 0, rh.inFrameLikelihood ?? 0, rk.inFrameLikelihood ?? 0);
+    return leftConf >= rightConf ? getAngle(ls!, lh!, lk!) : getAngle(rs!, rh!, rk!);
+  }
+  
+  if (leftValid) return getAngle(ls!, lh!, lk!);
+  return getAngle(rs!, rh!, rk!);
+}
+
 function isPoseComplete(pose: Pose, exercise: ExerciseType): boolean {
   if (exercise === 'pushup') {
-    const ls = pose.leftShoulder;
-    const le = pose.leftElbow;
-    const lw = pose.leftWrist;
-    if (!ls || !le || !lw) return false;
-    return getAngle(ls, le, lw) < 90;
+    const angle = getBestArmAngle(pose);
+    if (angle === null) return false;
+    return angle < 95;
   } else {
-    const ls = pose.leftShoulder;
-    const lh = pose.leftHip;
-    const lk = pose.leftKnee;
-    if (!ls || !lh || !lk) return false;
-    return getAngle(ls, lh, lk) < 90;
+    const angle = getBestTorsoAngle(pose);
+    if (angle === null) return false;
+    return angle < 95;
   }
 }
 
 function isPoseReset(pose: Pose, exercise: ExerciseType): boolean {
   if (exercise === 'pushup') {
-    const ls = pose.leftShoulder;
-    const le = pose.leftElbow;
-    const lw = pose.leftWrist;
-    if (!ls || !le || !lw) return false;
-    return getAngle(ls, le, lw) > 150;
+    const angle = getBestArmAngle(pose);
+    if (angle === null) return false;
+    return angle > 145;
   } else {
-    const ls = pose.leftShoulder;
-    const lh = pose.leftHip;
-    const lk = pose.leftKnee;
-    if (!ls || !lh || !lk) return false;
-    return getAngle(ls, lh, lk) > 150;
+    const angle = getBestTorsoAngle(pose);
+    if (angle === null) return false;
+    return angle > 145;
   }
 }
 
@@ -55,36 +112,68 @@ function getFormWarning(pose: Pose, exercise: ExerciseType): string | null {
     const ls = pose.leftShoulder;
     const lh = pose.leftHip;
     const lk = pose.leftKnee;
-    if (!ls || !lh || !lk) return null;
-    if (getAngle(ls, lh, lk) < 150) return 'Keep your back straight';
+    
+    const rs = pose.rightShoulder;
+    const rh = pose.rightHip;
+    const rk = pose.rightKnee;
+    
+    const leftValid = ls && lh && lk;
+    const rightValid = rs && rh && rk;
+    
+    if (!leftValid && !rightValid) return null;
+    
+    let backAngle = 180;
+    if (leftValid && rightValid) {
+      const leftConf = Math.min(ls.inFrameLikelihood ?? 0, lh.inFrameLikelihood ?? 0, lk.inFrameLikelihood ?? 0);
+      const rightConf = Math.min(rs.inFrameLikelihood ?? 0, rh.inFrameLikelihood ?? 0, rk.inFrameLikelihood ?? 0);
+      backAngle = leftConf >= rightConf ? getAngle(ls!, lh!, lk!) : getAngle(rs!, rh!, rk!);
+    } else if (leftValid) {
+      backAngle = getAngle(ls!, lh!, lk!);
+    } else {
+      backAngle = getAngle(rs!, rh!, rk!);
+    }
+    
+    if (backAngle < 140) return 'Keep your back straight';
     return null;
   } else {
     const lk = pose.leftKnee;
     const lh = pose.leftHip;
     const la = pose.leftAnkle;
-    if (!lk || !lh || !la) return null;
-    if (getAngle(la, lk, lh) > 120) return 'Bend your knees more';
+    
+    const rk = pose.rightKnee;
+    const rh = pose.rightHip;
+    const ra = pose.rightAnkle;
+    
+    const leftValid = lk && lh && la;
+    const rightValid = rk && rh && ra;
+    
+    if (!leftValid && !rightValid) return null;
+    
+    let kneeAngle = 90;
+    if (leftValid && rightValid) {
+      const leftConf = Math.min(lk.inFrameLikelihood ?? 0, lh.inFrameLikelihood ?? 0, la.inFrameLikelihood ?? 0);
+      const rightConf = Math.min(rk.inFrameLikelihood ?? 0, rh.inFrameLikelihood ?? 0, ra.inFrameLikelihood ?? 0);
+      kneeAngle = leftConf >= rightConf ? getAngle(la!, lk!, lh!) : getAngle(ra!, rk!, rh!);
+    } else if (leftValid) {
+      kneeAngle = getAngle(la!, lk!, lh!);
+    } else {
+      kneeAngle = getAngle(ra!, rk!, rh!);
+    }
+    
+    if (kneeAngle > 130) return 'Bend your knees more';
     return null;
   }
 }
 
 function getCurrentAngle(pose: Pose, exercise: ExerciseType): number | null {
   if (exercise === 'pushup') {
-    const ls = pose.leftShoulder;
-    const le = pose.leftElbow;
-    const lw = pose.leftWrist;
-    if (!ls || !le || !lw) return null;
-    return getAngle(ls, le, lw);
+    return getBestArmAngle(pose);
   } else {
-    const ls = pose.leftShoulder;
-    const lh = pose.leftHip;
-    const lk = pose.leftKnee;
-    if (!ls || !lh || !lk) return null;
-    return getAngle(ls, lh, lk);
+    return getBestTorsoAngle(pose);
   }
 }
 
-export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => void) {
+export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => void, mirrorX: boolean = true) {
   const [uiRepCount, setUiRepCount] = useState(0);
   const [formWarning, setFormWarning] = useState<string | null>(null);
   const [currentPoses, setCurrentPoses] = useState<Pose[]>([]);
@@ -145,8 +234,14 @@ export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => vo
         const pose = poses[0];
         poseCountRef.current++;
 
+        // Mirror overlay poses for UI rendering if mirrorX is true
+        let poseToRender = pose;
+        if (mirrorX && w > 0) {
+          poseToRender = mirrorPose(pose, w);
+        }
+
         // Update overlay poses
-        runOnJS(setCurrentPoses)([pose]);
+        runOnJS(setCurrentPoses)([poseToRender]);
 
         const angle = getCurrentAngle(pose, exercise);
 
@@ -181,7 +276,7 @@ export function usePoseDetection(exercise: ExerciseType, onRepComplete: () => vo
         });
       }
     });
-  }, [exercise, detectPose]);
+  }, [exercise, detectPose, mirrorX]);
 
   const reset = useCallback(() => {
     phaseRef.current = 'up';

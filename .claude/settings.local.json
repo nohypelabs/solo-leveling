@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__docdex__docdex_tree",
+      "Bash(npm --version)",
+      "Bash(npx expo *)",
+      "WebSearch",
+      "Bash(npm view *)",
+      "Bash(mkdir -p /tmp/solo-leveling-backup)",
+      "Bash(mv CLAUDE.md .gitignore .claude .docdex roadmap_sistemleveling_gofur.txt /tmp/solo-leveling-backup/)",
+      "Bash(npx create-expo-app@latest *)",
+      "Bash(cp /tmp/solo-leveling-backup/CLAUDE.md /tmp/solo-leveling-backup/roadmap_sistemleveling_gofur.txt /DataPopOS/projects/solo-leveling/)",
+      "Bash(cp -r /tmp/solo-leveling-backup/.docdex /DataPopOS/projects/solo-leveling/)",
+      "Read(//tmp/solo-leveling-backup/**)",
+      "Bash(npm install *)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(npm ls *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(npx tsc *)",
+      "Bash(npm search *)",
+      "Bash(eas build *)",
+      "Bash(eas build:view 3165c9e9-62ab-4b20-9aba-352fa26e30b5 --json)",
+      "Bash(eas build:view 3165c9e9-62ab-4b20-9aba-352fa26e30b5)",
+      "Bash(git status *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(npx eas-cli@latest *)",
+      "Bash(node --print \"require.resolve\\('hermes-compiler/package.json', { paths: [require.resolve\\('react-native/package.json'\\)] }\\)\")",
+      "WebFetch(domain:storage.googleapis.com)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('logFiles',[]\\),indent=2\\)\\)\")",
+      "Bash(npx eas-cli@latest build:view dd24a770-a8f9-4633-ba65-82cd62a889d6 --json)",
+      "Bash(python3 -c ' *)",
+      "Bash(node *)",
+      "Bash(adb logcat *)",
+      "Bash(npx react-native *)",
+      "Bash(npx expo-modules-autolinking *)"
+    ]
+  }
+}

@@ -142,6 +142,7 @@ export function CameraTrainingScreen({ onClose }: { onClose: () => void }) {
           device={device}
           isActive={true}
           frameProcessor={isTraining ? frameProcessor : undefined}
+          pixelFormat="yuv"
         />
 
         {/* Skeleton overlay */}
